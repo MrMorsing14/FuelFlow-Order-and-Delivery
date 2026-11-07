@@ -1,10 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Gives us ASP.NET Core's PasswordHasher, options and DI abstractions without extra packages. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\FuelFlow.Application\FuelFlow.Application.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-  </PropertyGroup>
 
 </Project>

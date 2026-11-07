@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NSubstitute" />
@@ -16,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FuelFlow.Api\FuelFlow.Api.csproj" />
+    <ProjectReference Include="..\..\src\FuelFlow.Infrastructure\FuelFlow.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
