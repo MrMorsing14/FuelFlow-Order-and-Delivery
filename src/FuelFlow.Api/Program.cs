@@ -2,12 +2,14 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using FuelFlow.Api.Middleware;
 using FuelFlow.Application;
+using FuelFlow.Domain.Pricing;
 using FuelFlow.Infrastructure;
 using FuelFlow.Infrastructure.Persistence;
 using FuelFlow.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +35,8 @@ builder.Services.AddOpenApi();
 
 // Inject TimeProvider wherever time is needed; tests swap in a FakeTimeProvider.
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOptions<PricingOptions>().BindConfiguration(PricingOptions.SectionName);
+builder.Services.AddSingleton(sp => new PriceCalculator(sp.GetRequiredService<IOptions<PricingOptions>>().Value));
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 

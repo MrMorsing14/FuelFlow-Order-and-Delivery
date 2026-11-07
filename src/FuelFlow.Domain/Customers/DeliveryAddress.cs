@@ -17,14 +17,25 @@ public sealed class DeliveryAddress
     public string? AccessNotes { get; private set; }
 
     public static DeliveryAddress Create(
-        Guid customerId, string? street, string? postalCode, string? city, int tankCapacityLitres, string? accessNotes = null) => new()
-        {
-            Id = Guid.CreateVersion7(),
-            CustomerId = customerId,
-            Street = Guard.NotBlank(street, "Street"),
-            PostalCode = PostalCode.Create(postalCode),
-            City = Guard.NotBlank(city, "City"),
-            TankCapacityLitres = Guard.Positive(tankCapacityLitres, "Tank capacity"),
-            AccessNotes = string.IsNullOrWhiteSpace(accessNotes) ? null : accessNotes.Trim(),
-        };
+        Guid customerId, string? street, string? postalCode, string? city, int tankCapacityLitres, string? accessNotes = null)
+    {
+        var address = new DeliveryAddress { Id = Guid.CreateVersion7(), CustomerId = customerId };
+        address.Update(street, postalCode, city, tankCapacityLitres, accessNotes);
+        return address;
+    }
+
+    public void Update(string? street, string? postalCode, string? city, int tankCapacityLitres, string? accessNotes)
+    {
+        // Validate everything first so a failed update leaves the address unchanged.
+        var newStreet = Guard.NotBlank(street, "Street");
+        var newPostalCode = PostalCode.Create(postalCode);
+        var newCity = Guard.NotBlank(city, "City");
+        var newTank = Guard.Positive(tankCapacityLitres, "Tank capacity");
+
+        Street = newStreet;
+        PostalCode = newPostalCode;
+        City = newCity;
+        TankCapacityLitres = newTank;
+        AccessNotes = string.IsNullOrWhiteSpace(accessNotes) ? null : accessNotes.Trim();
+    }
 }

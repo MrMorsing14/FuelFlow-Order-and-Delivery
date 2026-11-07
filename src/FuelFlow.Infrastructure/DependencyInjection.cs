@@ -1,4 +1,7 @@
 using FuelFlow.Application.Auth;
+using FuelFlow.Application.Customers;
+using FuelFlow.Application.Orders;
+using FuelFlow.Application.Products;
 using FuelFlow.Domain.Users;
 using FuelFlow.Infrastructure.Auth;
 using FuelFlow.Infrastructure.Persistence;
@@ -32,6 +35,9 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IAddressRepository, AddressRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FuelFlowDbContext>());
         services.AddJwtAuth();
 

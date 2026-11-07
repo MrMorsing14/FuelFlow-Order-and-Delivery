@@ -16,5 +16,8 @@ internal sealed class UserRepository(FuelFlowDbContext db) : IUserRepository
 
 internal sealed class CustomerRepository(FuelFlowDbContext db) : ICustomerRepository
 {
+    public Task<Customer?> GetAsync(Guid customerId, CancellationToken cancellationToken) =>
+        db.Customers.FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+
     public void Add(Customer customer) => db.Customers.Add(customer);
 }

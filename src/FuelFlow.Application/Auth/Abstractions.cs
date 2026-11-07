@@ -14,6 +14,8 @@ public interface IUserRepository
 
 public interface ICustomerRepository
 {
+    Task<Customer?> GetAsync(Guid customerId, CancellationToken cancellationToken);
+
     void Add(Customer customer);
 }
 

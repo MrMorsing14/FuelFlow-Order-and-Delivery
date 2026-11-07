@@ -178,3 +178,15 @@ public class PriceCalculatorTests
         }
     }
 }
+
+public class PriceCalculatorVatTests
+{
+    [Theory]
+    [InlineData(10.00, 12.50)]
+    [InlineData(11.50, 14.38)] // 14.375 rounds away from zero
+    [InlineData(0.01, 0.01)]
+    public void AddVat_UnitPrice_AddsTwentyFivePercentRoundedAwayFromZero(double exVat, double expected)
+    {
+        TestData.Calculator().AddVat((decimal)exVat).ShouldBe((decimal)expected);
+    }
+}

@@ -230,19 +230,19 @@ public class AuthTests(FuelFlowApiFactory factory) : IntegrationTestBase(factory
     }
 
     [Fact]
-    public async Task RoleProtectedEndpoint_CustomerToken_Returns403AndAdminToken_Returns200()
+    public async Task CustomerEndpoint_CustomerToken_Returns200AdminToken_Returns403AnonymousReturns401()
     {
         using var client = Factory.CreateClient();
         var customerToken = await RegisterAndLoginAsync(client);
         var adminToken = await CreateStaffAndLoginAsync(client, UserRole.Admin);
 
-        var asCustomer = await client.SendAsync(Get("/test/admin-only", customerToken), Ct);
-        var asAdmin = await client.SendAsync(Get("/test/admin-only", adminToken), Ct);
-        var anonymous = await client.SendAsync(Get("/test/admin-only", token: null), Ct);
+        var asCustomer = await client.SendAsync(Get("/api/customers/me", customerToken), Ct);
+        var asAdmin = await client.SendAsync(Get("/api/customers/me", adminToken), Ct);
+        var anonymous = await client.SendAsync(Get("/api/customers/me", token: null), Ct);
 
-        asCustomer.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        asCustomer.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
-        asAdmin.StatusCode.ShouldBe(HttpStatusCode.OK);
+        asCustomer.StatusCode.ShouldBe(HttpStatusCode.OK);
+        asAdmin.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        asAdmin.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
         anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 }

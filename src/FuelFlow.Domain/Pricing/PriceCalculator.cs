@@ -20,6 +20,9 @@ public sealed class PriceCalculator(PricingOptions options)
         }
     }
 
+    /// <summary>A unit price including VAT, for display (e.g. the public price list).</summary>
+    public decimal AddVat(decimal amountExVat) => Round(amountExVat * (1 + options.VatRate));
+
     public PriceBreakdown Calculate(decimal unitPriceExVat, int litres, CustomerType customerType)
     {
         Guard.Positive(unitPriceExVat, "Unit price");

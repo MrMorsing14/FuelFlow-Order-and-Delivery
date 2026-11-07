@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using FuelFlow.Application.Auth;
+using FuelFlow.Application.Common;
 using FuelFlow.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -34,6 +35,12 @@ public sealed class GlobalExceptionHandler(IProblemDetailsService problemDetails
             {
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Authentication failed.",
+                Detail = exception.Message,
+            },
+            NotFoundException => new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Not found.",
                 Detail = exception.Message,
             },
             ConflictDomainException => new ProblemDetails

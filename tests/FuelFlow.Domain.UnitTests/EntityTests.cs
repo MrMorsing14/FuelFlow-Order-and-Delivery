@@ -214,3 +214,65 @@ public class DeliveryWindowTests
         Should.Throw<DomainValidationException>(() => DeliveryWindow.Create(new DateOnly(2026, 1, 20), region, capacity));
     }
 }
+
+public class EntityUpdateTests
+{
+    [Fact]
+    public void Update_PrivateCustomer_ChangesPhoneAndNameButIgnoresCompanyFields()
+    {
+        var customer = TestData.PrivateCustomer();
+
+        customer.Update("+4599999999", "Anna Jensen", "Ignored ApS", "12345678");
+
+        customer.Phone.ShouldBe("+4599999999");
+        customer.FullName.ShouldBe("Anna Jensen");
+        customer.CompanyName.ShouldBeNull();
+        customer.Cvr.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Update_BusinessCustomer_ChangesCompanyAndCvr()
+    {
+        var customer = TestData.BusinessCustomer();
+
+        customer.Update("+4599999999", null, "New Name ApS", TestData.OtherValidCvr);
+
+        customer.CompanyName.ShouldBe("New Name ApS");
+        customer.Cvr.ShouldBe(CvrNumber.Create(TestData.OtherValidCvr));
+        customer.FullName.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Update_BusinessCustomerWithInvalidCvr_ThrowsAndChangesNothing()
+    {
+        var customer = TestData.BusinessCustomer();
+        var oldPhone = customer.Phone;
+
+        Should.Throw<DomainValidationException>(() => customer.Update("+4599999999", null, "New Name ApS", "12345678"));
+
+        customer.Phone.ShouldBe(oldPhone);
+        customer.CompanyName.ShouldBe("Hansen Transport ApS");
+    }
+
+    [Fact]
+    public void Update_Address_ChangesAllFields()
+    {
+        var address = TestData.AddressFor(TestData.PrivateCustomer());
+
+        address.Update("Ny Vej 2", "8000", "Aarhus C", 4000, "Gate code 1234");
+
+        (address.Street, address.PostalCode.Value, address.City, address.TankCapacityLitres, address.AccessNotes)
+            .ShouldBe(("Ny Vej 2", "8000", "Aarhus C", 4000, "Gate code 1234"));
+    }
+
+    [Fact]
+    public void Update_AddressWithInvalidPostalCode_ThrowsAndChangesNothing()
+    {
+        var address = TestData.AddressFor(TestData.PrivateCustomer());
+
+        Should.Throw<DomainValidationException>(() => address.Update("Ny Vej 2", "12", "Aarhus C", 4000, null));
+
+        address.Street.ShouldBe("Vejen 1");
+        address.PostalCode.Value.ShouldBe("2100");
+    }
+}
