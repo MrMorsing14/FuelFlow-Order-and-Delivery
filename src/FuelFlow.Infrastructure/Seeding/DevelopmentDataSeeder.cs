@@ -16,11 +16,10 @@ public sealed class DevelopmentDataSeeder(
     TimeProvider timeProvider,
     IOptions<SeedOptions> options)
 {
-    public const int DefaultWindowCapacityLitres = 10_000;
-
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        if (await db.Users.AnyAsync(cancellationToken))
+        // Products too: without seed credentials no users exist, and re-inserting products would hit their unique index.
+        if (await db.Users.AnyAsync(cancellationToken) || await db.Products.AnyAsync(cancellationToken))
         {
             return;
         }
@@ -62,7 +61,7 @@ public sealed class DevelopmentDataSeeder(
         {
             foreach (var region in new[] { "Copenhagen", "Aarhus" })
             {
-                db.DeliveryWindows.Add(DeliveryWindow.Create(today.AddDays(day), region, DefaultWindowCapacityLitres));
+                db.DeliveryWindows.Add(DeliveryWindow.Create(today.AddDays(day), region, 10_000));
             }
         }
 

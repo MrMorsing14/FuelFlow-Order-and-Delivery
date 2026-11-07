@@ -16,7 +16,8 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         // EF fills the private _priceHistory list directly, so the public property can stay read-only.
         builder.HasMany(p => p.PriceHistory).WithOne().HasForeignKey(h => h.ProductId).OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation(p => p.PriceHistory).UsePropertyAccessMode(PropertyAccessMode.Field);
+        // AutoInclude: a Product without its price history cannot price anything, so always load it.
+        builder.Navigation(p => p.PriceHistory).UsePropertyAccessMode(PropertyAccessMode.Field).AutoInclude();
     }
 }
 

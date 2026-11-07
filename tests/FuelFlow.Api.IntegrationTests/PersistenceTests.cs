@@ -83,7 +83,7 @@ public class PersistenceTests(FuelFlowApiFactory factory) : IntegrationTestBase(
 
         await using (var scope = NewScope())
         {
-            var loaded = await Db(scope).Products.Include(p => p.PriceHistory).SingleAsync(ct);
+            var loaded = await Db(scope).Products.SingleAsync(ct);
             loaded.PriceHistory.Count.ShouldBe(2);
             loaded.PriceAt(_now.AddHours(1)).ShouldBe(10m);
             loaded.PriceAt(_now.AddDays(2)).ShouldBe(11m);

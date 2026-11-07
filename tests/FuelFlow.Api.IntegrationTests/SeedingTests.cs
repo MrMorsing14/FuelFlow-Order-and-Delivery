@@ -91,11 +91,12 @@ public class SeedingTests(FuelFlowApiFactory factory) : IntegrationTestBase(fact
     }
 
     [Fact]
-    public async Task SeedAsync_NoCredentialsConfigured_SeedsNoUsers()
+    public async Task SeedAsync_NoCredentialsConfigured_SeedsNoUsersAndSurvivesSecondRun()
     {
         var ct = TestContext.Current.CancellationToken;
-        await using (var scope = NewScope())
+        for (var run = 0; run < 2; run++)
         {
+            await using var scope = NewScope();
             await CreateSeeder(scope, new SeedOptions()).SeedAsync(ct);
         }
 
