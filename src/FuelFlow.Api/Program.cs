@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using FuelFlow.Api.Middleware;
+using FuelFlow.Application;
 using FuelFlow.Infrastructure;
 using FuelFlow.Infrastructure.Persistence;
 using FuelFlow.Infrastructure.Seeding;
@@ -7,11 +10,16 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Enums travel as strings ("Private", "Business") in JSON.
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
 
 // Inject TimeProvider wherever time is needed; tests swap in a FakeTimeProvider.
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 
 // "live" has no checks (the process is up). "ready" includes the database, for Kubernetes probes.
@@ -38,6 +46,9 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+app.UseExceptionHandler();
+app.UseStatusCodePages(); // plain 401/403/404 responses also get a ProblemDetails body
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

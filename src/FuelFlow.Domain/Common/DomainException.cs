@@ -9,14 +9,17 @@ public class DomainException(string message) : Exception(message);
 /// <summary>An input or invariant is invalid (maps to 400 Bad Request).</summary>
 public sealed class DomainValidationException(string message) : DomainException(message);
 
-/// <summary>A state change is not allowed from the current state (maps to 409 Conflict).</summary>
+/// <summary>Base for rule violations that mean "conflicts with current state" (maps to 409 Conflict).</summary>
+public abstract class ConflictDomainException(string message) : DomainException(message);
+
+/// <summary>A state change is not allowed from the current state.</summary>
 public sealed class InvalidOrderTransitionException(Guid orderId, Orders.OrderStatus from, Orders.OrderStatus to)
-    : DomainException($"Order {orderId} cannot move from {from} to {to}.")
+    : ConflictDomainException($"Order {orderId} cannot move from {from} to {to}.")
 {
     public Orders.OrderStatus From { get; } = from;
     public Orders.OrderStatus To { get; } = to;
 }
 
-/// <summary>A delivery window does not have enough remaining capacity (maps to 409 Conflict).</summary>
+/// <summary>A delivery window does not have enough remaining capacity.</summary>
 public sealed class DeliveryWindowFullException(Guid windowId, int requested, int remaining)
-    : DomainException($"Delivery window {windowId} has {remaining} L remaining, {requested} L requested.");
+    : ConflictDomainException($"Delivery window {windowId} has {remaining} L remaining, {requested} L requested.");

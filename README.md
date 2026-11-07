@@ -12,6 +12,7 @@ dotnet run --project src/FuelFlow.Api
 ```
 
 In Development the API applies migrations and seeds demo data on startup (users, customers, products, delivery windows; credentials are in `src/FuelFlow.Api/appsettings.Development.json`).
+Outside Development, `Jwt__SigningKey` (at least 32 bytes) and `ConnectionStrings__Default` must be set as environment variables; the app refuses to start without them.
 Scalar API docs: <http://localhost:5044/scalar>. Probes: `/health/live`, `/health/ready`.
 
 ## Tests

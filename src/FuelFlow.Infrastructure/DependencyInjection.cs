@@ -1,4 +1,6 @@
+using FuelFlow.Application.Auth;
 using FuelFlow.Domain.Users;
+using FuelFlow.Infrastructure.Auth;
 using FuelFlow.Infrastructure.Persistence;
 using FuelFlow.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Identity;
@@ -27,6 +29,11 @@ public static class DependencyInjection
         });
 
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<IPasswordService, PasswordService>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FuelFlowDbContext>());
+        services.AddJwtAuth();
 
         services.AddOptions<SeedOptions>().BindConfiguration(SeedOptions.SectionName);
         services.AddScoped<DevelopmentDataSeeder>();
