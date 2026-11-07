@@ -18,6 +18,18 @@ public class StartupTests(FuelFlowApiFactory factory) : IntegrationTestBase(fact
             .Message.ShouldContain("Connection string");
     }
 
+    [Fact]
+    public void Startup_OverlappingDeliveryRegions_FailsFast()
+    {
+        // Index 1 is Zealand in appsettings.json; starting it at 1500 makes it overlap Copenhagen (1000-2999).
+        using var broken = Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(new Dictionary<string, string?> { ["Delivery:Regions:1:From"] = "1500" })));
+
+        Should.Throw<FuelFlow.Domain.Common.DomainValidationException>(() => broken.CreateClient())
+            .Message.ShouldContain("overlap");
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("too-short-key")] // 13 bytes, needs 32

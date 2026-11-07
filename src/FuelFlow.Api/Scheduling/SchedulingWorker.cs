@@ -54,7 +54,14 @@ public sealed class SchedulingWorker(
             var result = await scope.ServiceProvider.GetRequiredService<SchedulingService>().RunAsync(ct);
             if (result.Scheduled > 0)
             {
-                logger.LogInformation("Scheduled {Scheduled} order(s); {Skipped} still waiting.", result.Scheduled, result.Skipped);
+                logger.LogInformation("Scheduled {Scheduled} order(s).", result.Scheduled);
+            }
+
+            // Orders can wait forever without anyone noticing (no window yet, region renamed, bigger than any window), so say so.
+            if (result.Skipped > 0)
+            {
+                logger.LogWarning(
+                    "{Skipped} confirmed order(s) are still waiting for a delivery window (none with room in their region).", result.Skipped);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

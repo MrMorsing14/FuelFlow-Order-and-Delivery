@@ -25,6 +25,7 @@ public class OrderDeliveryTests
     [Theory]
     [InlineData(899)]
     [InlineData(1101)]
+    [InlineData(int.MaxValue)] // used to overflow the check and slip through
     [InlineData(0)]
     [InlineData(-100)]
     public void Deliver_OutsideTenPercentOrNonPositive_ThrowsAndStaysOutForDelivery(int delivered)

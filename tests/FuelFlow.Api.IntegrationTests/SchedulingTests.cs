@@ -9,6 +9,7 @@ using FuelFlow.Domain.Scheduling;
 using FuelFlow.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -253,6 +254,21 @@ public class SchedulingTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
         await worker.StopAsync(CancellationToken.None);
 
         (await LoadOrderAsync(order.Id)).Status.ShouldBe(OrderStatus.Confirmed);
+    }
+
+    [Fact]
+    public async Task Worker_OrdersStillWaitingForAWindow_LogsAWarning()
+    {
+        var s = await SetupAsync();
+        await ConfirmedOrderAsync(s); // no window exists, so it cannot be scheduled
+        var logger = new ListLogger<SchedulingWorker>();
+        using var worker = new SchedulingWorker(
+            Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new SchedulingOptions { IntervalMinutes = 5 }), new FakeTimeProvider(), logger);
+
+        await worker.RunOnceAsync(Ct);
+
+        logger.Entries.ShouldContain(e => e.Level == LogLevel.Warning && e.Message.Contains("1 confirmed order(s) are still waiting"));
     }
 
     [Fact]

@@ -102,7 +102,7 @@ public sealed class Order
     {
         EnsureCanMoveTo(OrderStatus.Delivered);
 
-        if (deliveredLitres <= 0 || Math.Abs(deliveredLitres - OrderedLitres) * 10 > OrderedLitres)
+        if (deliveredLitres <= 0 || Math.Abs((long)deliveredLitres - OrderedLitres) * 10 > OrderedLitres)
         {
             throw new DomainValidationException(
                 $"Delivered litres must be within 10 % of the ordered {OrderedLitres} litres.");
