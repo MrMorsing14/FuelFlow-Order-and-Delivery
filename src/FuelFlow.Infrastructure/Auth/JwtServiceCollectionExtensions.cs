@@ -34,13 +34,10 @@ internal static class JwtServiceCollectionExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
                     NameClaimType = "sub",
                     RoleClaimType = "role",
-                    ClockSkew = TimeSpan.Zero,
 
                     // Check expiry against the injected TimeProvider (not the system clock) so tests can control time.
-                    LifetimeValidator = (notBefore, expires, _, _) =>
-                        expires is not null
-                        && timeProvider.GetUtcNow().UtcDateTime < expires.Value
-                        && (notBefore is null || timeProvider.GetUtcNow().UtcDateTime >= notBefore.Value),
+                    // Tokens have no "not before" on purpose: with several replicas a slightly slower clock would reject fresh tokens.
+                    LifetimeValidator = (_, expires, _, _) => expires is not null && timeProvider.GetUtcNow().UtcDateTime < expires.Value,
                 };
             });
 

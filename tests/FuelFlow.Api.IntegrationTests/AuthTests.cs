@@ -156,6 +156,7 @@ public class AuthTests(FuelFlowApiFactory factory) : IntegrationTestBase(factory
         token.GetClaim("role").Value.ShouldBe("Customer");
         token.GetClaim("customer_id").Value.ShouldBe(registered.CustomerId.ToString());
         token.ValidTo.ShouldBe(FuelFlowApiFactory.StartTime.AddMinutes(60).UtcDateTime);
+        token.TryGetPayloadValue<long>("nbf", out _).ShouldBeFalse("no not-before claim, so clock drift between replicas cannot reject a fresh token");
     }
 
     [Fact]

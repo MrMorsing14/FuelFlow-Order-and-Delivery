@@ -44,6 +44,7 @@ public sealed class FuelFlowApiFactory : WebApplicationFactory<Program>, IAsyncL
             {
                 ["ConnectionStrings:Default"] = ConnectionString,
                 ["Jwt:SigningKey"] = "integration-test-signing-key-0123456789",
+                ["RateLimiting:AuthPermitLimit"] = "1000", // tests make many auth calls from one address
             }));
 
         builder.ConfigureTestServices(services =>

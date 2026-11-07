@@ -8,6 +8,9 @@ namespace FuelFlow.Api.IntegrationTests;
 [Route("test")]
 public sealed class RoleProbeController : ControllerBase
 {
+    [HttpGet("boom")]
+    public IActionResult Boom() => throw new InvalidOperationException("secret internal detail");
+
     [HttpGet("admin-only")]
     [Authorize(Roles = "Admin")]
     public IActionResult AdminOnly() => Ok();

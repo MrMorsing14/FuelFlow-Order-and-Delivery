@@ -1,8 +1,10 @@
+using FuelFlow.Application.Auth;
 using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Pricing;
 using FuelFlow.Domain.Products;
 using FuelFlow.Domain.Scheduling;
+using FuelFlow.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 
@@ -113,6 +115,18 @@ public class PersistenceTests(FuelFlowApiFactory factory) : IntegrationTestBase(
 
         await using var verify = NewScope();
         (await Db(verify).DeliveryWindows.SingleAsync(ct)).BookedLitres.ShouldBe(6000);
+    }
+
+    [Fact]
+    public async Task SaveChanges_TwoUsersWithSameEmail_ThrowsEmailAlreadyRegistered()
+    {
+        // Simulates two registrations racing: the AuthService pre-check passed for both, the unique index stops the second.
+        await using var scope = NewScope();
+        Db(scope).Users.AddRange(
+            User.Create("dup@example.com", "hash", UserRole.Admin),
+            User.Create("dup@example.com", "hash", UserRole.Dispatcher));
+
+        await Should.ThrowAsync<EmailAlreadyRegisteredException>(() => Db(scope).SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

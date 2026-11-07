@@ -1,10 +1,12 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using FuelFlow.Api.Middleware;
 using FuelFlow.Application;
 using FuelFlow.Infrastructure;
 using FuelFlow.Infrastructure.Persistence;
 using FuelFlow.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -14,6 +16,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
+
+// Throttle login/register: each attempt costs a slow password hash and invites password guessing.
+// shortcut: partitions by the connection's IP, which is the proxy's IP behind an ingress; add UseForwardedHeaders when the ingress arrives.
+builder.Services.AddRateLimiter(options => options.RejectionStatusCode = StatusCodes.Status429TooManyRequests);
+builder.Services.AddOptions<RateLimiterOptions>().Configure<IConfiguration>((options, config) =>
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = config.GetValue("RateLimiting:AuthPermitLimit", 10),
+            Window = TimeSpan.FromMinutes(1),
+        })));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
 
@@ -48,6 +62,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages(); // plain 401/403/404 responses also get a ProblemDetails body
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

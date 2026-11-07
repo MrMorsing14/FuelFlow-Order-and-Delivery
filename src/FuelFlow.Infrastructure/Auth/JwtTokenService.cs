@@ -32,12 +32,11 @@ internal sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider
             Issuer = jwt.Issuer,
             Audience = jwt.Audience,
             IssuedAt = now.UtcDateTime,
-            NotBefore = now.UtcDateTime,
             Expires = expires.UtcDateTime,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), SecurityAlgorithms.HmacSha256),
         };
 
-        return new AccessToken(new JsonWebTokenHandler().CreateToken(descriptor), expires);
+        return new AccessToken(new JsonWebTokenHandler { SetDefaultTimesOnTokenCreation = false }.CreateToken(descriptor), expires);
     }
 }

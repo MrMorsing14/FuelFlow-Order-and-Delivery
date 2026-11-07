@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FuelFlow.Application.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace FuelFlow.Api.Controllers;
 
@@ -12,11 +13,13 @@ public sealed record MeResponse(string UserId, string Email, string Role, string
 public sealed class AuthController(AuthService auth) : ControllerBase
 {
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType<RegisterResponse>(StatusCodes.Status201Created)]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken) =>
         StatusCode(StatusCodes.Status201Created, await auth.RegisterAsync(request, cancellationToken));
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<LoginResponse> Login(LoginRequest request, CancellationToken cancellationToken) =>
         await auth.LoginAsync(request, cancellationToken);
 

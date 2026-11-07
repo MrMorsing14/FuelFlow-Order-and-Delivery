@@ -17,6 +17,12 @@ public sealed class GlobalExceptionHandler(IProblemDetailsService problemDetails
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        // The client hung up; nobody is listening and nothing is wrong on our side.
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            return true;
+        }
+
         ProblemDetails problem = exception switch
         {
             ValidationException validation => new HttpValidationProblemDetails(GroupErrors(validation))
