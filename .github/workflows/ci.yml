@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            Directory.Packages.props
+            **/*.csproj
+
+      - run: dotnet restore
+
+      - name: Check formatting
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Unit tests
+        run: |
+          for project in Domain.UnitTests Application.UnitTests; do
+            dotnet test -c Release --no-build \
+              --project tests/FuelFlow.$project \
+              --coverlet --coverlet-output-format cobertura \
+              --report-trx --results-directory TestResults/$project
+          done
+
+      - name: Integration tests
+        run: >
+          dotnet test -c Release --no-build
+          --project tests/FuelFlow.Api.IntegrationTests
+          --coverlet --coverlet-output-format cobertura
+          --report-trx --results-directory TestResults/Api.IntegrationTests
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator -reports:"TestResults/**/coverage.cobertura*.xml" -targetdir:coverage -reporttypes:MarkdownSummaryGithub
+          cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
