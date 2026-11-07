@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FuelFlow.Api/FuelFlow.Api.csproj" />
+    <Project Path="src/FuelFlow.Application/FuelFlow.Application.csproj" />
+    <Project Path="src/FuelFlow.Domain/FuelFlow.Domain.csproj" />
+    <Project Path="src/FuelFlow.Infrastructure/FuelFlow.Infrastructure.csproj" />
+    <Project Path="src/FuelFlow.Web/FuelFlow.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FuelFlow.Api.IntegrationTests/FuelFlow.Api.IntegrationTests.csproj" />
+    <Project Path="tests/FuelFlow.Application.UnitTests/FuelFlow.Application.UnitTests.csproj" />
+    <Project Path="tests/FuelFlow.Domain.UnitTests/FuelFlow.Domain.UnitTests.csproj" />
+  </Folder>
+</Solution>
