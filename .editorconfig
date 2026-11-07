@@ -38,3 +38,8 @@ dotnet_naming_style.underscore_camel.capitalization = camel_case
 # Test names follow MethodName_Scenario_ExpectedResult
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core generated migrations: excluded from style analysis and formatting
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
