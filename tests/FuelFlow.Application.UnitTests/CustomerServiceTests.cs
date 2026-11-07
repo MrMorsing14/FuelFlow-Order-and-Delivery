@@ -45,6 +45,33 @@ public class CustomerServiceTests
     }
 
     [Fact]
+    public async Task UpdateAddressAsync_AddressWithOrdersMovesLocation_ThrowsAndSavesNothing()
+    {
+        var address = DeliveryAddress.Create(Guid.NewGuid(), "Vejen 1", "2100", "København Ø", 3000);
+        _addresses.GetAsync(address.Id, address.CustomerId, Arg.Any<CancellationToken>()).Returns(address);
+        _addresses.HasOrdersAsync(address.Id, Arg.Any<CancellationToken>()).Returns(true);
+
+        await Should.ThrowAsync<AddressInUseException>(() => _service.UpdateAddressAsync(
+            address.CustomerId, address.Id, new AddressRequest("Vejen 1", "8000", "Aarhus C", 3000, null), Ct));
+
+        address.PostalCode.Value.ShouldBe("2100");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAddressAsync_AddressWithOrdersOnlyNotesAndTankChange_Succeeds()
+    {
+        var address = DeliveryAddress.Create(Guid.NewGuid(), "Vejen 1", "2100", "København Ø", 3000);
+        _addresses.GetAsync(address.Id, address.CustomerId, Arg.Any<CancellationToken>()).Returns(address);
+        _addresses.HasOrdersAsync(address.Id, Arg.Any<CancellationToken>()).Returns(true);
+
+        var dto = await _service.UpdateAddressAsync(
+            address.CustomerId, address.Id, new AddressRequest(" Vejen 1 ", "2100", "København Ø", 5000, "Gate code 1234"), Ct);
+
+        (dto.TankCapacityLitres, dto.AccessNotes).ShouldBe((5000, "Gate code 1234"));
+    }
+
+    [Fact]
     public async Task DeleteAddressAsync_AddressWithoutOrders_RemovesAndSaves()
     {
         var address = DeliveryAddress.Create(Guid.NewGuid(), "Vejen 1", "2100", "København Ø", 3000);

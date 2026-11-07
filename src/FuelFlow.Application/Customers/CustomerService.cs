@@ -51,6 +51,15 @@ public sealed class CustomerService(
         await addressValidator.ValidateAndThrowAsync(request, ct);
         var address = await FindAddressAsync(customerId, addressId, ct);
 
+        // Orders point at the address by id, so moving it would silently change where old and planned orders go.
+        var movesLocation = request.Street.Trim() != address.Street
+            || request.PostalCode.Trim() != address.PostalCode.Value
+            || request.City.Trim() != address.City;
+        if (movesLocation && await addresses.HasOrdersAsync(addressId, ct))
+        {
+            throw new AddressInUseException("The address has orders, so street, postal code and city cannot change. Create a new address instead.");
+        }
+
         address.Update(request.Street, request.PostalCode, request.City, request.TankCapacityLitres, request.AccessNotes);
         await unitOfWork.SaveChangesAsync(ct);
         return address.ToDto();
@@ -61,7 +70,7 @@ public sealed class CustomerService(
         var address = await FindAddressAsync(customerId, addressId, ct);
         if (await addresses.HasOrdersAsync(addressId, ct))
         {
-            throw new AddressInUseException();
+            throw new AddressInUseException("The address has orders and cannot be deleted.");
         }
 
         addresses.Remove(address);

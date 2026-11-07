@@ -48,9 +48,10 @@ public sealed class ProductService(
     {
         await validator.ValidateAndThrowAsync(request, ct);
         var product = await products.GetAsync(productId, ct) ?? throw new NotFoundException("Product");
-        var validFrom = request.ValidFrom ?? timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
+        var validFrom = request.ValidFrom ?? now;
 
-        product.ChangePrice(request.PricePerLitreExVat, validFrom);
+        product.ChangePrice(request.PricePerLitreExVat, validFrom, now);
         await unitOfWork.SaveChangesAsync(ct);
         return new PriceChangeDto(product.Id, request.PricePerLitreExVat, validFrom);
     }

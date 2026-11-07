@@ -137,6 +137,7 @@ public class OrderApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
     [InlineData("page=0", "page")]
     [InlineData("pageSize=101", "pageSize")]
     [InlineData("pageSize=0", "pageSize")]
+    [InlineData("page=2147483647&pageSize=100", "page")]
     public async Task List_InvalidPaging_Returns400NamingTheField(string query, string field)
     {
         var anna = await RegisterCustomerAsync();

@@ -142,6 +142,37 @@ public class CustomerApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task UpdateAddress_WithOrders_LocationIsFrozenButNotesAndTankCanChange()
+    {
+        var anna = await RegisterCustomerAsync();
+        var productId = await SeedProductAsync();
+        var address = await CreateAddressAsync(anna.Client);
+        (await anna.Client.PostAsJsonAsync("/api/orders", new { productId, deliveryAddressId = address.Id, litres = 1000 }, Ct))
+            .EnsureSuccessStatusCode();
+        var url = $"/api/customers/me/addresses/{address.Id}";
+
+        var moved = await anna.Client.PutAsJsonAsync(url, new { street = "Vejen 1", postalCode = "8000", city = "Aarhus C", tankCapacityLitres = 10_000 }, Ct);
+        var edited = await anna.Client.PutAsJsonAsync(url, new { street = "Vejen 1", postalCode = "2100", city = "København Ø", tankCapacityLitres = 12_000, accessNotes = "New code" }, Ct);
+
+        moved.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        edited.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var stored = await Read<AddressDto>(await anna.Client.GetAsync(url, Ct));
+        (stored.PostalCode, stored.TankCapacityLitres, stored.AccessNotes).ShouldBe(("2100", 12_000, "New code"));
+    }
+
+    [Fact]
+    public async Task UpdateAddress_WithoutOrders_CanMove()
+    {
+        var anna = await RegisterCustomerAsync();
+        var address = await CreateAddressAsync(anna.Client);
+
+        var moved = await anna.Client.PutAsJsonAsync($"/api/customers/me/addresses/{address.Id}",
+            new { street = "Ny Vej 2", postalCode = "8000", city = "Aarhus C", tankCapacityLitres = 3000 }, Ct);
+
+        moved.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task CustomerEndpoints_StaffUser_Returns403()
     {
         var admin = await StaffClientAsync(UserRole.Admin);

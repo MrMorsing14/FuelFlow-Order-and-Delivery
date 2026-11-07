@@ -75,7 +75,7 @@ public class PersistenceTests(FuelFlowApiFactory factory) : IntegrationTestBase(
     {
         var ct = TestContext.Current.CancellationToken;
         var product = Product.Create(ProductType.HeatingOil, 10m, _now);
-        product.ChangePrice(11m, _now.AddDays(1));
+        product.ChangePrice(11m, _now.AddDays(1), _now);
 
         await using (var scope = NewScope())
         {

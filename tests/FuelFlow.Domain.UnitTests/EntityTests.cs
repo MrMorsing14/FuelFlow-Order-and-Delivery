@@ -121,7 +121,7 @@ public class ProductPriceHistoryTests
     {
         var product = Product.Create(ProductType.Diesel, 10m, TestData.Now);
 
-        product.ChangePrice(12m, TestData.Now.AddDays(1));
+        product.ChangePrice(12m, TestData.Now.AddDays(1), TestData.Now);
 
         product.PriceHistory.Count.ShouldBe(2);
         product.PriceAt(TestData.Now.AddHours(23)).ShouldBe(10m);
@@ -130,12 +130,39 @@ public class ProductPriceHistoryTests
     }
 
     [Fact]
+    public void ChangePrice_WrongScheduledPrice_CanBeCorrectedBeforeItTakesEffect()
+    {
+        var product = Product.Create(ProductType.Diesel, 10m, TestData.Now.AddDays(-1));
+        product.ChangePrice(12m, TestData.Now.AddDays(1), TestData.Now); // typo: meant 11
+
+        product.ChangePrice(11m, TestData.Now, TestData.Now); // set it right now
+        product.PriceHistory.Select(p => p.PricePerLitreExVat).Order().ShouldBe([10m, 11m]);
+
+        product.ChangePrice(13m, TestData.Now.AddDays(1), TestData.Now); // schedule again for the same time
+        product.ChangePrice(14m, TestData.Now.AddDays(5), TestData.Now); // a later one keeps the earlier schedule
+        product.PriceHistory.Select(p => p.PricePerLitreExVat).Order().ShouldBe([10m, 11m, 13m, 14m]);
+        product.PriceAt(TestData.Now.AddDays(2)).ShouldBe(13m);
+    }
+
+    [Fact]
+    public void ChangePrice_PriceAlreadyInForce_IsNeverReplaced()
+    {
+        var product = Product.Create(ProductType.Diesel, 10m, TestData.Now.AddDays(-1));
+        product.ChangePrice(12m, TestData.Now, TestData.Now);
+
+        // The 12 DKK price is in force at "now", so a price valid from "now" must be rejected, not overwrite it.
+        Should.Throw<DomainValidationException>(() => product.ChangePrice(11m, TestData.Now, TestData.Now));
+        product.PriceHistory.Count.ShouldBe(2);
+        product.PriceAt(TestData.Now).ShouldBe(12m);
+    }
+
+    [Fact]
     public void ChangePrice_NotAfterLatestValidFrom_Throws()
     {
         var product = Product.Create(ProductType.Diesel, 10m, TestData.Now);
 
-        Should.Throw<DomainValidationException>(() => product.ChangePrice(12m, TestData.Now));
-        Should.Throw<DomainValidationException>(() => product.ChangePrice(12m, TestData.Now.AddDays(-1)));
+        Should.Throw<DomainValidationException>(() => product.ChangePrice(12m, TestData.Now, TestData.Now));
+        Should.Throw<DomainValidationException>(() => product.ChangePrice(12m, TestData.Now.AddDays(-1), TestData.Now));
         product.PriceHistory.Count.ShouldBe(1);
     }
 
@@ -146,7 +173,7 @@ public class ProductPriceHistoryTests
     {
         var product = Product.Create(ProductType.Hvo, 10m, TestData.Now);
 
-        Should.Throw<DomainValidationException>(() => product.ChangePrice(price, TestData.Now.AddDays(1)));
+        Should.Throw<DomainValidationException>(() => product.ChangePrice(price, TestData.Now.AddDays(1), TestData.Now));
     }
 
     [Fact]

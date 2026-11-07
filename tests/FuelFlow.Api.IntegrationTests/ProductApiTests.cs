@@ -4,6 +4,7 @@ using FuelFlow.Application.Orders;
 using FuelFlow.Application.Products;
 using FuelFlow.Domain.Products;
 using FuelFlow.Domain.Users;
+using Microsoft.EntityFrameworkCore;
 using Shouldly;
 
 namespace FuelFlow.Api.IntegrationTests;
@@ -55,6 +56,25 @@ public class ProductApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
         (await Read<List<ProductDto>>(await admin.GetAsync("/api/products", Ct))).Single().PricePerLitreExVat.ShouldBe(10m);
         Factory.Time.Advance(TimeSpan.FromDays(1));
         (await Read<List<ProductDto>>(await admin.GetAsync("/api/products", Ct))).Single().PricePerLitreExVat.ShouldBe(12m);
+    }
+
+    [Fact]
+    public async Task ChangePrice_WrongScheduledPrice_CanBeCorrectedAndReplacedRowsAreRemoved()
+    {
+        var admin = await StaffClientAsync(UserRole.Admin);
+        var productId = await SeedProductAsync(pricePerLitre: 10m);
+        var tomorrow = FuelFlowApiFactory.StartTime.AddDays(1);
+        (await admin.PutAsJsonAsync($"/api/products/{productId}/price", new { pricePerLitreExVat = 12m, validFrom = tomorrow }, Ct)).EnsureSuccessStatusCode();
+
+        // Same time again: replaces the schedule (also exercises delete-then-insert of the same unique key).
+        (await admin.PutAsJsonAsync($"/api/products/{productId}/price", new { pricePerLitreExVat = 11m, validFrom = tomorrow }, Ct)).EnsureSuccessStatusCode();
+        // "Now": replaces the schedule and takes effect immediately.
+        (await admin.PutAsJsonAsync($"/api/products/{productId}/price", new { pricePerLitreExVat = 11.5m }, Ct)).EnsureSuccessStatusCode();
+
+        await using var scope = NewScope();
+        var history = (await Db(scope).Products.SingleAsync(Ct)).PriceHistory;
+        history.Select(h => h.PricePerLitreExVat).Order().ShouldBe([10m, 11.5m]);
+        (await Read<List<ProductDto>>(await admin.GetAsync("/api/products", Ct))).Single().PricePerLitreExVat.ShouldBe(11.5m);
     }
 
     [Fact]

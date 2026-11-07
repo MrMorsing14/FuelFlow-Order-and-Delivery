@@ -76,7 +76,7 @@ public class OrderDeliveryTests
     {
         var customer = TestData.PrivateCustomer();
         var product = TestData.Product(10m);
-        product.ChangePrice(12m, TestData.Now.AddDays(1));
+        product.ChangePrice(12m, TestData.Now.AddDays(1), TestData.Now);
 
         var order = Domain.Orders.Order.Place(
             customer, TestData.AddressFor(customer), product, 1000, TestData.Calculator(), TestData.Now);

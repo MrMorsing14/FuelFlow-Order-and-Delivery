@@ -50,15 +50,23 @@ public sealed class Product
         return product;
     }
 
-    public void ChangePrice(decimal newPricePerLitreExVat, DateTimeOffset validFrom)
+    /// <summary>
+    /// Adds a price valid from <paramref name="validFrom"/>. Prices that are scheduled for the future and not yet in force
+    /// (valid from the same time or later) are replaced, so a wrong scheduled price can be corrected. Prices already in force
+    /// are never touched, so old orders and the history stay intact.
+    /// </summary>
+    public void ChangePrice(decimal newPricePerLitreExVat, DateTimeOffset validFrom, DateTimeOffset now)
     {
-        var latest = _priceHistory.MaxBy(p => p.ValidFrom)!;
+        var superseded = _priceHistory.Where(p => p.ValidFrom >= validFrom && p.ValidFrom > now).ToList();
+        var latest = _priceHistory.Except(superseded).MaxBy(p => p.ValidFrom)!;
         if (validFrom <= latest.ValidFrom)
         {
-            throw new DomainValidationException("A new price must be valid from after the latest existing price.");
+            throw new DomainValidationException("A new price must be valid from after the latest price already in force.");
         }
 
-        _priceHistory.Add(Products.PriceHistory.Create(Id, newPricePerLitreExVat, validFrom));
+        var price = Products.PriceHistory.Create(Id, newPricePerLitreExVat, validFrom);
+        superseded.ForEach(p => _priceHistory.Remove(p));
+        _priceHistory.Add(price);
     }
 
     /// <summary>The price in force at the given moment (excl. VAT).</summary>

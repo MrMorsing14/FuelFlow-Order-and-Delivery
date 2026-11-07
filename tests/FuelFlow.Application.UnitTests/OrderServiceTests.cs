@@ -137,6 +137,9 @@ public class PageRequestValidatorTests
     [InlineData(-1, 20, false)]
     [InlineData(1, 0, false)]
     [InlineData(1, 101, false)]
+    [InlineData(1_000_000, 100, true)]
+    [InlineData(1_000_001, 100, false)]
+    [InlineData(int.MaxValue, 100, false)]
     public void Validate_PageAndSize_AcceptsOnlyPositivePageAndSizeUpToHundred(int page, int size, bool valid)
     {
         new PageRequestValidator().Validate(new PageRequest(page, size)).IsValid.ShouldBe(valid);
@@ -189,7 +192,7 @@ public class ProductServiceTests
     public async Task ListAsync_PriceChangeScheduledForLater_ShowsPriceInForceNow()
     {
         var product = Product.Create(ProductType.Diesel, 10m, _time.GetUtcNow().AddDays(-1));
-        product.ChangePrice(12m, _time.GetUtcNow().AddDays(1));
+        product.ChangePrice(12m, _time.GetUtcNow().AddDays(1), _time.GetUtcNow());
         _products.ListAsync(Arg.Any<CancellationToken>()).Returns([product]);
 
         var list = await _service.ListAsync(Ct);
