@@ -9,7 +9,7 @@ COPY src/FuelFlow.Web src/FuelFlow.Web
 RUN dotnet publish src/FuelFlow.Web/FuelFlow.Web.csproj -c Release --no-restore -o /out
 
 # The "unprivileged" nginx image runs as a non-root user and listens on 8080.
-FROM docker.io/nginxinc/nginx-unprivileged:1.30-alpine AS final
+FROM docker.io/nginxinc/nginx-unprivileged:1.31-alpine AS final
 # Pull in security fixes that are newer than the base image (the Trivy scan in CD fails the build on CRITICAL findings).
 USER root
 RUN apk upgrade --no-cache
