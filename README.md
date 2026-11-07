@@ -16,6 +16,15 @@ Outside Development, `Jwt__SigningKey` (at least 32 bytes) and `ConnectionString
 Delivery regions (postal code ranges) are configured under `Delivery:Regions`. A background worker assigns confirmed orders to delivery windows every `Scheduling:IntervalMinutes` minutes (0 turns it off).
 Scalar API docs: <http://localhost:5044/scalar>. Probes: `/health/live`, `/health/ready`.
 
+## Docker
+
+```bash
+podman compose up --build      # or: docker compose up --build
+```
+
+Starts postgres, the API (<http://localhost:8080/scalar>) and the web UI (<http://localhost:8081>, nginx, which also forwards `/api/` to the API).
+The images (`src/FuelFlow.Api/Dockerfile`, `src/FuelFlow.Web/Dockerfile`, built from the repository root) run as non-root. The API image is distroless-style (no shell) and does not contain the development settings file; compose mounts it for local use.
+
 ## Tests
 
 ```bash

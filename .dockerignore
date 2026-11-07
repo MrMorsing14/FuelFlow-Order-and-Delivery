@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+**/TestResults/
+coverage/
+.git/
+.github/
+.claude/
+.vs/
+.vscode/
+.idea/
+tests/
+*.md
+docker-compose*.yml
+**/Dockerfile
+.dockerignore

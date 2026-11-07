@@ -1,4 +1,6 @@
-# Local development only. The API and Web services are added in Phase 6.
+# Local development stack: postgres, api, web.
+#   podman compose up --build      (or: docker compose up --build)
+# Web:  http://localhost:8081      API (Scalar docs): http://localhost:8080/scalar
 services:
   postgres:
     image: docker.io/library/postgres:17
@@ -15,6 +17,38 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/FuelFlow.Api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Development: the API migrates and seeds the database itself (it does that in no other environment).
+      ASPNETCORE_ENVIRONMENT: Development
+      # Config comes from environment variables; this one overrides the localhost address in appsettings.Development.json.
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fuelflow;Username=fuelflow;Password=fuelflow;GSS Encryption Mode=Disable
+      # nginx (web) sits in front, so trust X-Forwarded-For for the real client address (rate limiting).
+      # Only set this when the API is NOT reachable directly, otherwise clients could fake their address.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    volumes:
+      # Dev seed credentials and the dev JWT key are not in the image; mount them for local use only.
+      - ./src/FuelFlow.Api/appsettings.Development.json:/app/appsettings.Development.json:ro,z
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: src/FuelFlow.Web/Dockerfile
+    depends_on:
+      - api
+    environment:
+      API_UPSTREAM: http://api:8080
+    ports:
+      - "8081:8080"
 
 volumes:
   pgdata:

@@ -22,7 +22,8 @@ builder.Services.AddControllers()
 builder.Services.AddProblemDetails();
 
 // Throttle login/register: each attempt costs a slow password hash and invites password guessing.
-// shortcut: partitions by the connection's IP, which is the proxy's IP behind an ingress; add UseForwardedHeaders when the ingress arrives.
+// shortcut: partitions by the connection's IP. Behind a proxy (nginx, ingress) set ASPNETCORE_FORWARDEDHEADERS_ENABLED=true so that is the real client IP,
+// and only do that when the API is not reachable directly (clients could otherwise fake X-Forwarded-For).
 builder.Services.AddRateLimiter(options => options.RejectionStatusCode = StatusCodes.Status429TooManyRequests);
 builder.Services.AddOptions<RateLimiterOptions>().Configure<IConfiguration>((options, config) =>
     options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
