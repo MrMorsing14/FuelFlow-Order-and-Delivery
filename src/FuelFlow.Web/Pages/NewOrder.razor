@@ -1,0 +1,117 @@
+@page "/orders/new"
+@attribute [Authorize(Roles = "Customer")]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>New order - FuelFlow</PageTitle>
+<h1>New order</h1>
+
+<ErrorBox Error="_error" />
+
+@if (_products is null || _addresses is null)
+{
+    <p>Loading...</p>
+}
+else if (_addresses.Count == 0)
+{
+    <p>You need a delivery address first. <a href="addresses">Add an address</a>.</p>
+}
+else
+{
+    <form class="card narrow" @onsubmit="GetQuoteAsync">
+        <label>
+            Product
+            <select @bind="_productId" @bind:after="ClearQuote">
+                <option value="@Guid.Empty">Choose a product</option>
+                @foreach (var product in _products)
+                {
+                    <option value="@product.Id">@product.Type: @Format.Money(product.PricePerLitreIncVat) per litre incl. VAT</option>
+                }
+            </select>
+        </label>
+        <label>
+            Delivery address
+            <select @bind="_addressId" @bind:after="ClearQuote">
+                <option value="@Guid.Empty">Choose an address</option>
+                @foreach (var address in _addresses)
+                {
+                    <option value="@address.Id">@address.Street, @address.PostalCode @address.City (tank @Format.Litres(address.TankCapacityLitres))</option>
+                }
+            </select>
+        </label>
+        <label>Litres <input type="number" min="1" @bind="_litres" @bind:after="ClearQuote" /></label>
+        <button type="submit" disabled="@(_busy || _productId == Guid.Empty || _addressId == Guid.Empty)">Get price</button>
+    </form>
+
+    @if (_quote is not null)
+    {
+        <section class="card narrow">
+            <h2>Your price</h2>
+            <PriceTable Price="_quote" />
+            <button @onclick="PlaceAsync" disabled="@_busy">Place order</button>
+        </section>
+    }
+}
+
+@code {
+    private List<Product>? _products;
+    private List<Address>? _addresses;
+    private Guid _productId;
+    private Guid _addressId;
+    private int _litres = 1000;
+    private Price? _quote;
+    private bool _busy;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _products = await Api.GetProductsAsync();
+            _addresses = await Api.GetAddressesAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+    }
+
+    private void ClearQuote() => _quote = null;
+
+    private OrderRequest Request => new(_productId, _addressId, _litres);
+
+    private async Task GetQuoteAsync()
+    {
+        _busy = true;
+        _error = null;
+        _quote = null;
+        try
+        {
+            _quote = await Api.QuoteAsync(Request);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PlaceAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await Api.PlaceOrderAsync(Request);
+            Nav.NavigateTo("orders");
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+            _busy = false;
+        }
+    }
+}

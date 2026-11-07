@@ -1,0 +1,132 @@
+@page "/addresses"
+@attribute [Authorize(Roles = "Customer")]
+@inject ApiClient Api
+
+<PageTitle>Addresses - FuelFlow</PageTitle>
+<h1>Delivery addresses</h1>
+
+<ErrorBox Error="_error" />
+
+@if (_addresses is null)
+{
+    <p>Loading...</p>
+}
+else if (_addresses.Count == 0)
+{
+    <p>You have no delivery address yet. Add one below to place an order.</p>
+}
+else
+{
+    <table>
+        <thead><tr><th>Address</th><th>Tank</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var address in _addresses)
+            {
+                <tr>
+                    <td>@address.Street, @address.PostalCode @address.City</td>
+                    <td class="num">@Format.Litres(address.TankCapacityLitres)</td>
+                    <td>@address.AccessNotes</td>
+                    <td class="actions">
+                        <button class="link" @onclick="() => Edit(address)">Edit</button>
+                        <button class="link danger" @onclick="() => DeleteAsync(address.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<form class="card" @onsubmit="SaveAsync">
+    <h2>@(_editingId is null ? "Add address" : "Edit address")</h2>
+    <label>Street <input @bind="_street" required /></label>
+    <div class="row">
+        <label>Postal code <input @bind="_postalCode" inputmode="numeric" maxlength="4" required /></label>
+        <label>City <input @bind="_city" required /></label>
+    </div>
+    <label>Tank capacity (litres) <input type="number" min="1" @bind="_tank" required /></label>
+    <label>Access notes (optional) <input @bind="_notes" /></label>
+    <div class="row">
+        <button type="submit" disabled="@_busy">@(_editingId is null ? "Add" : "Save")</button>
+        @if (_editingId is not null)
+        {
+            <button type="button" class="secondary" @onclick="Reset">Cancel</button>
+        }
+    </div>
+</form>
+
+@code {
+    private List<Address>? _addresses;
+    private Guid? _editingId;
+    private string _street = "";
+    private string _postalCode = "";
+    private string _city = "";
+    private int _tank = 3000;
+    private string _notes = "";
+    private bool _busy;
+    private ApiException? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _addresses = await Api.GetAddressesAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+    }
+
+    private void Edit(Address address)
+    {
+        _editingId = address.Id;
+        (_street, _postalCode, _city, _tank, _notes) = (address.Street, address.PostalCode, address.City, address.TankCapacityLitres, address.AccessNotes ?? "");
+    }
+
+    private void Reset()
+    {
+        _editingId = null;
+        (_street, _postalCode, _city, _tank, _notes) = ("", "", "", 3000, "");
+    }
+
+    private async Task SaveAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var request = new AddressRequest(_street.Trim(), _postalCode.Trim(), _city.Trim(), _tank, string.IsNullOrWhiteSpace(_notes) ? null : _notes.Trim());
+            if (_editingId is { } id)
+            {
+                await Api.UpdateAddressAsync(id, request);
+            }
+            else
+            {
+                await Api.CreateAddressAsync(request);
+            }
+
+            Reset();
+        });
+    }
+
+    private Task DeleteAsync(Guid id) => RunAsync(() => Api.DeleteAddressAsync(id));
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await action();
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

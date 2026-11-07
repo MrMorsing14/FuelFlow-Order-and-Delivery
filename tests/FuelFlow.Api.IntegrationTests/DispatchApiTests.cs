@@ -43,6 +43,19 @@ public class DispatchApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task Regions_Dispatcher_ListsConfiguredRegionsAndCustomerIsRejected()
+    {
+        var dispatcher = await StaffClientAsync(UserRole.Dispatcher);
+        var customer = await RegisterCustomerAsync();
+
+        var regions = await Read<List<RegionDto>>(await dispatcher.GetAsync("/api/dispatch/regions", Ct));
+
+        regions.Select(r => r.Name).ShouldBe(["Copenhagen", "Zealand", "Funen", "South Jutland", "Aarhus", "North Jutland"]);
+        regions[0].ShouldBe(new RegionDto("Copenhagen", 1000, 2999));
+        (await customer.Client.GetAsync("/api/dispatch/regions", Ct)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task ListOrders_ShowsEveryCustomersOrdersWithContactAddressAndRegion()
     {
         var anna = await RegisterCustomerAsync("anna@example.com");

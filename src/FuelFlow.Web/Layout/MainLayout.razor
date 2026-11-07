@@ -1,3 +1,41 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject AuthSession Session
+@inject NavigationManager Nav
 
-@Body
+<header class="topbar">
+    <a class="brand" href="/">FuelFlow</a>
+    <nav>
+        <AuthorizeView Roles="Customer">
+            <NavLink href="orders/new">New order</NavLink>
+            <NavLink href="orders" Match="NavLinkMatch.All">My orders</NavLink>
+            <NavLink href="addresses">Addresses</NavLink>
+        </AuthorizeView>
+        <AuthorizeView Roles="Dispatcher,Admin">
+            <NavLink href="dispatch">Dispatch</NavLink>
+        </AuthorizeView>
+    </nav>
+    <div class="user">
+        <AuthorizeView>
+            <Authorized>
+                <span>@context.User.Identity?.Name (@context.User.FindFirst("role")?.Value)</span>
+                <button class="link" @onclick="LogOutAsync">Log out</button>
+            </Authorized>
+            <NotAuthorized>
+                <NavLink href="login">Log in</NavLink>
+                <NavLink href="register">Register</NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+<main class="container">
+    @Body
+</main>
+
+@code {
+    private async Task LogOutAsync()
+    {
+        await Session.SignOutAsync();
+        Nav.NavigateTo("login");
+    }
+}

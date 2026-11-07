@@ -23,6 +23,8 @@ public sealed record DeliveryWindowFilter(DateOnly? From, DateOnly? To, string? 
 public sealed record DispatchOrderDto(
     OrderDto Order, string CustomerName, string CustomerPhone, AddressDto Address, string? Region, DateOnly? DeliveryDate);
 
+public sealed record RegionDto(string Name, int PostalCodeFrom, int PostalCodeTo);
+
 public sealed record DeliveryWindowDto(Guid Id, DateOnly Date, string Region, int CapacityLitres, int BookedLitres, int RemainingLitres);
 
 // ---- what the repositories hand back

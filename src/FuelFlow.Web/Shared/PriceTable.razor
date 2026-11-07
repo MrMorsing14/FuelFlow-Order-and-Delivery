@@ -1,0 +1,22 @@
+<table class="price">
+    <tbody>
+        <tr><td>Fuel (@Format.Litres(Price.Litres) &times; @Format.Money(Price.UnitPriceExVat))</td><td class="num">@Format.Money(Price.NetAmount)</td></tr>
+        @if (Price.DiscountAmount > 0)
+        {
+            <tr><td>Discount (@((Price.DiscountRate * 100).ToString("0.##"))%)</td><td class="num">&minus;@Format.Money(Price.DiscountAmount)</td></tr>
+        }
+        @if (Price.SmallOrderFee > 0)
+        {
+            <tr><td>Small order fee</td><td class="num">@Format.Money(Price.SmallOrderFee)</td></tr>
+        }
+        @* The total the customer should look at (incl. VAT for private, excl. VAT for business) is highlighted. *@
+        <tr class="@(Price.DisplayIncVat ? null : "highlight")"><td>Total excl. VAT</td><td class="num">@Format.Money(Price.TotalExVat)</td></tr>
+        <tr><td>VAT (@((Price.VatRate * 100).ToString("0.##"))%)</td><td class="num">@Format.Money(Price.VatAmount)</td></tr>
+        <tr class="@(Price.DisplayIncVat ? "highlight" : null)"><td>Total incl. VAT</td><td class="num">@Format.Money(Price.TotalIncVat)</td></tr>
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired]
+    public Price Price { get; set; } = default!;
+}

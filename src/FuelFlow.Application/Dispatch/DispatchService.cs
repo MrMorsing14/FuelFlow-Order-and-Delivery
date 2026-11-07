@@ -53,6 +53,8 @@ public sealed class DispatchService(
             r.DeliveryDate));
     }
 
+    public IReadOnlyList<RegionDto> ListRegions() => [.. regions.Regions.Select(r => new RegionDto(r.Name, r.From, r.To))];
+
     public Task<OrderDto> ConfirmAsync(Guid orderId, CancellationToken ct) =>
         ChangeAsync(orderId, (order, now) => order.Confirm(now), ct);
 

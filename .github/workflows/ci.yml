@@ -32,7 +32,7 @@ jobs:
 
       - name: Unit tests
         run: |
-          for project in Domain.UnitTests Application.UnitTests; do
+          for project in Domain.UnitTests Application.UnitTests Web.UnitTests; do
             dotnet test -c Release --no-build \
               --project tests/FuelFlow.$project \
               --coverlet --coverlet-output-format cobertura \

@@ -1,0 +1,108 @@
+@page "/orders"
+@attribute [Authorize(Roles = "Customer")]
+@inject ApiClient Api
+
+<PageTitle>My orders - FuelFlow</PageTitle>
+<h1>My orders</h1>
+
+<ErrorBox Error="_error" />
+
+@if (_result is null)
+{
+    <p>Loading...</p>
+}
+else if (_result.TotalCount == 0)
+{
+    <p>You have not placed any orders yet. <a href="orders/new">Place your first order</a>.</p>
+}
+else
+{
+    <table>
+        <thead><tr><th>Placed</th><th>Litres</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var order in _result.Items)
+            {
+                <tr>
+                    <td>@Format.Date(order.CreatedAt)</td>
+                    <td class="num">@Format.Litres(order.DeliveredLitres ?? order.OrderedLitres)</td>
+                    <td class="num" title="@order.CurrentPrice.DisplayedLabel">@Format.Money(order.CurrentPrice.Displayed)</td>
+                    <td><span class="badge @order.Status.ToLowerInvariant()">@order.Status</span></td>
+                    <td class="actions">
+                        @if (_cancelling == order.Id)
+                        {
+                            <input placeholder="Reason" @bind="_reason" @bind:event="oninput" />
+                            <button class="danger" disabled="@string.IsNullOrWhiteSpace(_reason)" @onclick="() => CancelAsync(order.Id)">Confirm cancel</button>
+                            <button class="link" @onclick="() => _cancelling = null">Keep order</button>
+                        }
+                        else if (order.CanBeCancelled)
+                        {
+                            <button class="link danger" @onclick="() => StartCancel(order.Id)">Cancel</button>
+                        }
+                        else if (order.CancellationReason is not null)
+                        {
+                            <span class="muted">@order.CancellationReason</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav class="pager">
+        <button class="secondary" disabled="@(_page <= 1)" @onclick="() => GoToAsync(_page - 1)">Previous</button>
+        <span>Page @_result.Page of @_result.TotalPages (@_result.TotalCount orders)</span>
+        <button class="secondary" disabled="@(_page >= _result.TotalPages)" @onclick="() => GoToAsync(_page + 1)">Next</button>
+    </nav>
+}
+
+@code {
+    private const int PageSize = 10;
+
+    private Paged<Order>? _result;
+    private int _page = 1;
+    private Guid? _cancelling;
+    private string _reason = "";
+    private ApiException? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _result = await Api.GetOrdersAsync(_page, PageSize);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+    }
+
+    private Task GoToAsync(int page)
+    {
+        _page = page;
+        return LoadAsync();
+    }
+
+    private void StartCancel(Guid id)
+    {
+        _cancelling = id;
+        _reason = "";
+    }
+
+    private async Task CancelAsync(Guid id)
+    {
+        _error = null;
+        try
+        {
+            await Api.CancelOrderAsync(id, _reason.Trim());
+            _cancelling = null;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+
+        await LoadAsync();
+    }
+}

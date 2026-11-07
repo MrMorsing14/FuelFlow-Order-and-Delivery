@@ -18,6 +18,10 @@ public sealed class DispatchController(DispatchService dispatch) : ControllerBas
         [FromQuery] DispatchOrderFilter filter, [FromQuery] PageRequest paging, CancellationToken ct) =>
         dispatch.ListOrdersAsync(filter, paging, ct);
 
+    /// <summary>The configured delivery regions, for filters and for creating delivery windows.</summary>
+    [HttpGet("regions")]
+    public IReadOnlyList<RegionDto> Regions() => dispatch.ListRegions();
+
     [HttpPost("orders/{id:guid}/confirm")]
     public Task<OrderDto> Confirm(Guid id, CancellationToken ct) => dispatch.ConfirmAsync(id, ct);
 

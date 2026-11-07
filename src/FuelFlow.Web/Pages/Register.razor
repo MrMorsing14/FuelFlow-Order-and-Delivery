@@ -1,0 +1,67 @@
+@page "/register"
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Register - FuelFlow</PageTitle>
+<h1>Create an account</h1>
+
+<ErrorBox Error="_error" />
+
+<form class="card narrow" @onsubmit="SubmitAsync">
+    <fieldset class="row">
+        <label><input type="radio" name="type" checked="@(_type == "Private")" @onchange="@(() => _type = "Private")" /> Private</label>
+        <label><input type="radio" name="type" checked="@(_type == "Business")" @onchange="@(() => _type = "Business")" /> Business</label>
+    </fieldset>
+
+    @if (_type == "Private")
+    {
+        <label>Full name <input @bind="_fullName" required /></label>
+    }
+    else
+    {
+        <label>Company name <input @bind="_companyName" required /></label>
+        <label>CVR number <input @bind="_cvr" inputmode="numeric" maxlength="8" required /></label>
+    }
+
+    <label>Phone <input type="tel" @bind="_phone" required /></label>
+    <label>Email <input type="email" @bind="_email" autocomplete="username" required /></label>
+    <label>Password (at least 8 characters) <input type="password" @bind="_password" autocomplete="new-password" required /></label>
+    <button type="submit" disabled="@_busy">Register</button>
+    <p>Already registered? <a href="login">Log in</a></p>
+</form>
+
+@code {
+    private string _type = "Private";
+    private string _fullName = "";
+    private string _companyName = "";
+    private string _cvr = "";
+    private string _phone = "";
+    private string _email = "";
+    private string _password = "";
+    private bool _busy;
+    private ApiException? _error;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var isPrivate = _type == "Private";
+            await Api.RegisterAsync(new RegisterRequest(
+                _email.Trim(), _password, _type, _phone.Trim(),
+                isPrivate ? _fullName.Trim() : null,
+                isPrivate ? null : _companyName.Trim(),
+                isPrivate ? null : _cvr.Trim()));
+            Nav.NavigateTo("login");
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -25,6 +25,22 @@ podman compose up --build      # or: docker compose up --build
 Starts postgres, the API (<http://localhost:8080/scalar>) and the web UI (<http://localhost:8081>, nginx, which also forwards `/api/` to the API).
 The images (`src/FuelFlow.Api/Dockerfile`, `src/FuelFlow.Web/Dockerfile`, built from the repository root) run as non-root. The API image is distroless-style (no shell) and does not contain the development settings file; compose mounts it for local use.
 
+## Web UI
+
+Blazor WebAssembly (standalone), plain CSS. Customers register, log in, manage delivery addresses, get a price quote, place orders, see and cancel their orders.
+Dispatchers and admins see all orders, filter them by status, region and delivery date, and move them along (confirm, out for delivery, delivered with the delivered litres).
+Prices follow the customer type: private customers see totals including VAT, business customers excluding VAT; the full breakdown is always shown.
+
+The UI talks to the API on its own address (nginx forwards `/api/`), so it runs through compose; there is no separate dev server setup.
+
+### Where the login token lives (security trade-off)
+
+The JWT is kept in memory and copied to **sessionStorage**, so a page reload keeps you logged in; closing the tab logs you out.
+The catch: any JavaScript running on the page can read sessionStorage, so a cross-site scripting (XSS) bug could steal the token. Blazor escapes everything it renders and the app never writes raw HTML, which is the main defence, and tokens expire after 60 minutes (there are no refresh tokens).
+Alternatives and why they were not chosen: an httpOnly cookie hides the token from scripts but needs CSRF protection and a proxy that holds the session (the "backend for frontend" pattern), which is more moving parts than this project wants; keeping the token only in memory is safer but logs you out on every reload.
+Possible hardening later: a Content-Security-Policy header (Blazor's import map is an inline script, so it needs a hash or nonce first) and a backend-for-frontend.
+The UI reads the role from the token to decide which pages to show. That is convenience, not security: the API checks the signed token on every request.
+
 ## Tests
 
 ```bash

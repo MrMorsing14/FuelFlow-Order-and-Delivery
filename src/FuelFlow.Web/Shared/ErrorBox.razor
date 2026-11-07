@@ -1,0 +1,23 @@
+@if (Error is not null)
+{
+    <div class="alert error" role="alert">
+        <div>@Error.Message</div>
+        @if (Error is ApiException { FieldErrors.Count: > 0 } api)
+        {
+            <ul>
+                @foreach (var (field, messages) in api.FieldErrors)
+                {
+                    foreach (var message in messages)
+                    {
+                        <li><strong>@field:</strong> @message</li>
+                    }
+                }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Exception? Error { get; set; }
+}

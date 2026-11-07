@@ -1,0 +1,43 @@
+@page "/login"
+@inject ApiClient Api
+@inject AuthSession Session
+@inject NavigationManager Nav
+
+<PageTitle>Log in - FuelFlow</PageTitle>
+<h1>Log in</h1>
+
+<ErrorBox Error="_error" />
+
+<form class="card narrow" @onsubmit="SubmitAsync">
+    <label>Email <input type="email" @bind="_email" autocomplete="username" required /></label>
+    <label>Password <input type="password" @bind="_password" autocomplete="current-password" required /></label>
+    <button type="submit" disabled="@_busy">Log in</button>
+    <p>No account yet? <a href="register">Register</a></p>
+</form>
+
+@code {
+    private string _email = "";
+    private string _password = "";
+    private bool _busy;
+    private ApiException? _error;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var login = await Api.LoginAsync(_email.Trim(), _password);
+            await Session.SignInAsync(login.AccessToken);
+            Nav.NavigateTo("/", replace: true);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

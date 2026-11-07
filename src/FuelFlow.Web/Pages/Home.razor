@@ -1,7 +1,20 @@
-﻿@page "/"
+@page "/"
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
 
-<PageTitle>Home</PageTitle>
+<p>Loading...</p>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+@code {
+    // The start page only decides where to go, based on who is logged in.
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState.GetAuthenticationStateAsync()).User;
+        var target = user switch
+        {
+            { Identity.IsAuthenticated: false } => "login",
+            _ when user.IsInRole("Customer") => "orders",
+            _ => "dispatch",
+        };
+        Nav.NavigateTo(target, replace: true);
+    }
+}

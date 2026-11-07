@@ -1,0 +1,173 @@
+@page "/dispatch"
+@attribute [Authorize(Roles = "Dispatcher,Admin")]
+@inject ApiClient Api
+
+<PageTitle>Dispatch - FuelFlow</PageTitle>
+<h1>Dispatch</h1>
+
+<form class="filters" @onsubmit="ApplyFiltersAsync">
+    <label>
+        Status
+        <select @bind="_status">
+            <option value="">All</option>
+            @foreach (var status in Statuses)
+            {
+                <option value="@status">@status</option>
+            }
+        </select>
+    </label>
+    <label>
+        Region
+        <select @bind="_region">
+            <option value="">All</option>
+            @foreach (var region in _regions)
+            {
+                <option value="@region.Name">@region.Name</option>
+            }
+        </select>
+    </label>
+    <label>Delivery date <input type="date" value="@_date" @onchange="e => _date = e.Value?.ToString() ?? string.Empty" /></label>
+    <button type="submit">Filter</button>
+</form>
+
+<ErrorBox Error="_error" />
+
+@if (_result is null)
+{
+    <p>Loading...</p>
+}
+else if (_result.TotalCount == 0)
+{
+    <p>No orders match.</p>
+}
+else
+{
+    <table>
+        <thead><tr><th>Placed</th><th>Customer</th><th>Deliver to</th><th>Litres</th><th>Delivery</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var row in _result.Items)
+            {
+                var order = row.Order;
+                <tr>
+                    <td>@Format.Date(order.CreatedAt)</td>
+                    <td>@row.CustomerName<br /><span class="muted">@row.CustomerPhone</span></td>
+                    <td>@row.Address.Street, @row.Address.PostalCode @row.Address.City<br /><span class="muted">@row.Region</span></td>
+                    <td class="num">@Format.Litres(order.OrderedLitres)</td>
+                    <td>@(row.DeliveryDate is { } date ? Format.Date(date) : "Not planned")</td>
+                    <td><span class="badge @order.Status.ToLowerInvariant()">@order.Status</span></td>
+                    <td class="actions">
+                        @switch (order.Status)
+                        {
+                            case "Pending":
+                                <button @onclick="() => RunAsync(() => Api.ConfirmAsync(order.Id))">Confirm</button>
+                                break;
+                            case "Confirmed":
+                                <span class="muted">Waiting for a delivery window</span>
+                                break;
+                            case "Scheduled":
+                                <button @onclick="() => RunAsync(() => Api.StartDeliveryAsync(order.Id))">Out for delivery</button>
+                                break;
+                            case "OutForDelivery" when _delivering == order.Id:
+                                <input type="number" min="1" aria-label="Delivered litres" @bind="_deliveredLitres" />
+                                <button disabled="@(_deliveredLitres <= 0)" @onclick="() => DeliverAsync(order.Id)">Save</button>
+                                <button class="link" @onclick="() => _delivering = null">Cancel</button>
+                                break;
+                            case "OutForDelivery":
+                                <button @onclick="() => StartDeliver(order)">Delivered</button>
+                                break;
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav class="pager">
+        <button class="secondary" disabled="@(_page <= 1)" @onclick="() => GoToAsync(_page - 1)">Previous</button>
+        <span>Page @_result.Page of @_result.TotalPages (@_result.TotalCount orders)</span>
+        <button class="secondary" disabled="@(_page >= _result.TotalPages)" @onclick="() => GoToAsync(_page + 1)">Next</button>
+    </nav>
+}
+
+@code {
+    private const int PageSize = 20;
+
+    private static readonly string[] Statuses = ["Pending", "Confirmed", "Scheduled", "OutForDelivery", "Delivered", "Cancelled"];
+
+    private List<Region> _regions = [];
+    private Paged<DispatchOrder>? _result;
+    private string _status = "";
+    private string _region = "";
+    private string _date = "";
+    private int _page = 1;
+    private Guid? _delivering;
+    private int _deliveredLitres;
+    private ApiException? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _regions = await Api.GetRegionsAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _result = await Api.GetDispatchOrdersAsync(_status, _region, _date, _page, PageSize);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+    }
+
+    private Task ApplyFiltersAsync()
+    {
+        _page = 1;
+        _error = null;
+        return LoadAsync();
+    }
+
+    private Task GoToAsync(int page)
+    {
+        _page = page;
+        return LoadAsync();
+    }
+
+    private void StartDeliver(Order order)
+    {
+        _delivering = order.Id;
+        _deliveredLitres = order.OrderedLitres;
+    }
+
+    private Task DeliverAsync(Guid id) => RunAsync(async () =>
+    {
+        await Api.DeliverAsync(id, _deliveredLitres);
+        _delivering = null;
+    });
+
+    // Runs one status change, shows an error if the API refuses it (for example 409: someone else changed the order first), and reloads.
+    private async Task RunAsync(Func<Task> action)
+    {
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex;
+        }
+
+        await LoadAsync();
+    }
+}
