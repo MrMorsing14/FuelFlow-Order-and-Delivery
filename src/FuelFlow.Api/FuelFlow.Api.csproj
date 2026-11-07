@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FuelFlow.Application\FuelFlow.Application.csproj" />
+    <ProjectReference Include="..\FuelFlow.Infrastructure\FuelFlow.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
