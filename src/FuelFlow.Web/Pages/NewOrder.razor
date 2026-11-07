@@ -7,6 +7,10 @@
 <h1>New order</h1>
 
 <ErrorBox Error="_error" />
+@if (_notice is not null)
+{
+    <div class="alert warning" role="status">@_notice</div>
+}
 
 @if (_products is null || _addresses is null)
 {
@@ -61,6 +65,7 @@ else
     private int _litres = 1000;
     private Price? _quote;
     private bool _busy;
+    private string? _notice;
     private ApiException? _error;
 
     protected override async Task OnInitializedAsync()
@@ -84,6 +89,7 @@ else
     {
         _busy = true;
         _error = null;
+        _notice = null;
         _quote = null;
         try
         {
@@ -105,7 +111,16 @@ else
         _error = null;
         try
         {
-            await Api.PlaceOrderAsync(Request);
+            var order = await Api.PlaceOrderAsync(Request);
+            if (_quote is { } quoted && order.Price.Displayed != quoted.Displayed)
+            {
+                // The order is placed at the price in force now (an admin changed it after the quote). Say so instead of hiding it.
+                _notice = $"The price changed while you were looking. Your order was placed at {Format.Money(order.Price.Displayed)} (the quote was {Format.Money(quoted.Displayed)}). You can see it under My orders.";
+                _quote = null;
+                _busy = false;
+                return;
+            }
+
             Nav.NavigateTo("orders");
         }
         catch (ApiException ex)

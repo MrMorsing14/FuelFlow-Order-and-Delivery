@@ -97,6 +97,7 @@ td.actions input { display: inline-block; width: 7rem; margin: 0 .35rem 0 0; }
 /* ---- messages and badges */
 .alert { padding: .75rem 1rem; border-radius: 6px; margin: 1rem 0; }
 .alert.error { background: #fef3f2; border: 1px solid #fecdca; color: var(--danger); }
+.alert.warning { background: #fffaeb; border: 1px solid #fedf89; color: var(--warn); }
 .alert ul { margin: .35rem 0 0; padding-left: 1.2rem; }
 .badge { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .8rem; background: #eef0f4; color: var(--text); }
 .badge.pending { background: #fef0c7; color: var(--warn); }

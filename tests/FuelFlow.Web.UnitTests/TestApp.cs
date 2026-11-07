@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using Bunit;
 using FuelFlow.Web.Api;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -14,20 +13,28 @@ namespace FuelFlow.Web.UnitTests;
 public sealed class StubHandler : HttpMessageHandler
 {
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
-    private readonly List<(HttpMethod Method, string PathPrefix, Func<HttpResponseMessage> Respond)> _routes = [];
+    private readonly List<(HttpMethod Method, string PathPrefix, Func<Task<HttpResponseMessage>> Respond)> _routes = [];
 
     public List<Request> Requests { get; } = [];
 
     public sealed record Request(HttpMethod Method, string PathAndQuery, string? Body, string? Authorization);
 
     public void On(HttpMethod method, string pathPrefix, object? body = null, HttpStatusCode status = HttpStatusCode.OK) =>
-        _routes.Add((method, pathPrefix, () => new HttpResponseMessage(status) { Content = JsonContent.Create(body, options: _json) }));
+        _routes.Add((method, pathPrefix, () => Task.FromResult(new HttpResponseMessage(status) { Content = JsonContent.Create(body, options: _json) })));
 
     public void OnProblem(HttpMethod method, string pathPrefix, HttpStatusCode status, string json) =>
-        _routes.Add((method, pathPrefix, () => new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, "application/problem+json") }));
+        _routes.Add((method, pathPrefix, () => Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(json, Encoding.UTF8, "application/problem+json") })));
 
     public void OnNetworkFailure(HttpMethod method, string pathPrefix) =>
         _routes.Add((method, pathPrefix, () => throw new HttpRequestException("connection refused")));
+
+    /// <summary>The answer is only sent when the test completes the returned source, to test what the UI does while a request is in flight.</summary>
+    public TaskCompletionSource<HttpResponseMessage> OnDeferred(HttpMethod method, string pathPrefix)
+    {
+        var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _routes.Add((method, pathPrefix, () => pending.Task));
+        return pending;
+    }
 
     public IEnumerable<Request> Calls(HttpMethod method, string pathPrefix) =>
         Requests.Where(r => r.Method == method && r.PathAndQuery.StartsWith(pathPrefix, StringComparison.Ordinal));
@@ -41,7 +48,7 @@ public sealed class StubHandler : HttpMessageHandler
         var route = _routes.FirstOrDefault(r => r.Method == request.Method && pathAndQuery.StartsWith(r.PathPrefix, StringComparison.Ordinal));
         return route.Respond is null
             ? throw new InvalidOperationException($"The test did not expect {request.Method} {pathAndQuery}")
-            : route.Respond();
+            : await route.Respond();
     }
 }
 
@@ -53,11 +60,10 @@ public sealed class TestApp : BunitContext
     public TestApp()
     {
         JSInterop.Mode = JSRuntimeMode.Loose; // sessionStorage calls and PageTitle work without setup
+        // The real registrations; then only the clock and the HTTP handler are swapped for test doubles (the last registration wins).
+        Services.AddFuelFlowWeb(new Uri("http://localhost/"));
         Services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
-        Services.AddSingleton(new HttpClient(Http) { BaseAddress = new Uri("http://localhost/") });
-        Services.AddScoped<AuthSession>();
-        Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<AuthSession>());
-        Services.AddScoped<ApiClient>();
+        Services.AddScoped(_ => new HttpClient(Http) { BaseAddress = new Uri("http://localhost/") });
     }
 
     public StubHandler Http { get; } = new();

@@ -3,6 +3,8 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Blazor publishes ready-made .gz files next to its assets; serve those instead of compressing ~6 MB on every request.
+    gzip_static on;
     gzip on;
     gzip_types text/css application/javascript application/json application/wasm image/svg+xml;
 

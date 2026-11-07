@@ -1,6 +1,9 @@
 using System.Net;
 using Bunit;
 using FuelFlow.Web.Api;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace FuelFlow.Web.UnitTests;
@@ -51,6 +54,20 @@ public class FormatTests
 
     [Fact]
     public void Date_DateOnly_UsesDayMonthYear() => Format.Date(new DateOnly(2026, 3, 5)).ShouldBe("05.03.2026");
+}
+
+public class StartupWiringTests
+{
+    [Fact]
+    public void AddFuelFlowWeb_RegistersEverythingThePagesNeed()
+    {
+        using var app = new TestApp();
+
+        app.Services.GetRequiredService<ApiClient>().ShouldNotBeNull();
+        app.Services.GetRequiredService<IAuthorizationService>().ShouldNotBeNull(); // needed by AuthorizeView and [Authorize]
+        app.Services.GetRequiredService<AuthenticationStateProvider>().ShouldBeSameAs(app.Session);
+        app.Services.GetRequiredService<AuthSession>().ShouldBeSameAs(app.Session);
+    }
 }
 
 public class AuthSessionTests

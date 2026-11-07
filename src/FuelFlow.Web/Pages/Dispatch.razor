@@ -59,21 +59,21 @@ else
                         @switch (order.Status)
                         {
                             case "Pending":
-                                <button @onclick="() => RunAsync(() => Api.ConfirmAsync(order.Id))">Confirm</button>
+                                <button disabled="@_busy" @onclick="() => RunAsync(() => Api.ConfirmAsync(order.Id))">Confirm</button>
                                 break;
                             case "Confirmed":
                                 <span class="muted">Waiting for a delivery window</span>
                                 break;
                             case "Scheduled":
-                                <button @onclick="() => RunAsync(() => Api.StartDeliveryAsync(order.Id))">Out for delivery</button>
+                                <button disabled="@_busy" @onclick="() => RunAsync(() => Api.StartDeliveryAsync(order.Id))">Out for delivery</button>
                                 break;
                             case "OutForDelivery" when _delivering == order.Id:
                                 <input type="number" min="1" aria-label="Delivered litres" @bind="_deliveredLitres" />
-                                <button disabled="@(_deliveredLitres <= 0)" @onclick="() => DeliverAsync(order.Id)">Save</button>
+                                <button disabled="@(_busy || _deliveredLitres <= 0)" @onclick="() => DeliverAsync(order.Id)">Save</button>
                                 <button class="link" @onclick="() => _delivering = null">Cancel</button>
                                 break;
                             case "OutForDelivery":
-                                <button @onclick="() => StartDeliver(order)">Delivered</button>
+                                <button disabled="@_busy" @onclick="() => StartDeliver(order)">Delivered</button>
                                 break;
                         }
                     </td>
@@ -102,6 +102,7 @@ else
     private int _page = 1;
     private Guid? _delivering;
     private int _deliveredLitres;
+    private bool _busy;
     private ApiException? _error;
 
     protected override async Task OnInitializedAsync()
@@ -156,8 +157,15 @@ else
     });
 
     // Runs one status change, shows an error if the API refuses it (for example 409: someone else changed the order first), and reloads.
+    // While it runs the action buttons are disabled, so a double click cannot send the same change twice (the second would fail with a confusing 409).
     private async Task RunAsync(Func<Task> action)
     {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
         _error = null;
         try
         {
@@ -169,5 +177,6 @@ else
         }
 
         await LoadAsync();
+        _busy = false;
     }
 }

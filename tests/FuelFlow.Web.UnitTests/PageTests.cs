@@ -259,6 +259,23 @@ public class NewOrderPageTests
     }
 
     [Fact]
+    public void PlaceOrder_PriceChangedSinceTheQuote_StaysOnThePageAndSaysSo()
+    {
+        using var app = new TestApp();
+        var orderAtNewPrice = Samples.Order("Pending") with { Price = Samples.Price() with { TotalIncVat = 13_750m } };
+        app.Http.On(HttpMethod.Post, "api/orders", orderAtNewPrice, HttpStatusCode.Created);
+        var cut = RenderReady(app);
+        FillAndQuote(cut);
+        cut.WaitForAssertion(() => cut.FindAll("table.price").Count.ShouldBe(1), TimeSpan.FromSeconds(5));
+
+        cut.Find("section button").Click();
+
+        cut.WaitForAssertion(() => cut.Find(".alert.warning").TextContent.ShouldContain("13.750,00 kr."), TimeSpan.FromSeconds(5));
+        cut.Find(".alert.warning").TextContent.ShouldContain("12.500,00 kr.");
+        app.Services.GetRequiredService<NavigationManager>().Uri.ShouldBe("http://localhost/");
+    }
+
+    [Fact]
     public void PlaceOrder_AfterAQuote_PostsTheSameRequestAndGoesToMyOrders()
     {
         using var app = new TestApp();
@@ -379,6 +396,23 @@ public class DispatchPageTests
 
         cut.WaitForAssertion(() => app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/confirm").Count().ShouldBe(1), TimeSpan.FromSeconds(5));
         cut.WaitForAssertion(() => app.Http.Calls(HttpMethod.Get, "api/dispatch/orders").Count().ShouldBe(2), TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void ActionButtons_WhileARequestIsInFlight_AreDisabledSoADoubleClickSendsOnlyOneRequest()
+    {
+        using var app = new TestApp();
+        var order = Samples.Dispatch("Pending");
+        var answer = app.Http.OnDeferred(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/confirm");
+        var cut = RenderWith(app, order);
+
+        cut.Find("td.actions button").Click();
+        cut.Find("td.actions button").HasAttribute("disabled").ShouldBeTrue();
+        cut.Find("td.actions button").Click(); // the double click
+
+        answer.SetResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = System.Net.Http.Json.JsonContent.Create(Samples.Order("Confirmed", order.Order.Id)) });
+        cut.WaitForAssertion(() => cut.Find("td.actions button").HasAttribute("disabled").ShouldBeFalse(), TimeSpan.FromSeconds(5));
+        app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/confirm").Count().ShouldBe(1);
     }
 
     [Fact]
