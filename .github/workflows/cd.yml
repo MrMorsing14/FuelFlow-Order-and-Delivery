@@ -82,7 +82,7 @@ jobs:
 
       # Build into the local Docker daemon first, so the scan can fail the job before anything is pushed.
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
@@ -108,7 +108,7 @@ jobs:
 
       # Same Dockerfile and cache, so this reuses the layers built (and scanned) above.
       - name: Push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
