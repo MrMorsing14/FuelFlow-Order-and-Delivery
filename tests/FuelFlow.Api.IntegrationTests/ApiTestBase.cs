@@ -4,8 +4,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FuelFlow.Application.Auth;
 using FuelFlow.Application.Customers;
+using FuelFlow.Application.Dispatch;
+using FuelFlow.Application.Orders;
+using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Products;
+using FuelFlow.Domain.Scheduling;
 using FuelFlow.Domain.Users;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FuelFlow.Api.IntegrationTests;
@@ -64,6 +69,42 @@ public abstract class ApiTestBase(FuelFlowApiFactory factory) : IntegrationTestB
             tankCapacityLitres,
             accessNotes = "Tank behind garage",
         }, Ct));
+
+    /// <summary>A date relative to the fake "today" (2 March 2026).</summary>
+    protected static DateOnly Day(int daysFromToday) => DateOnly.FromDateTime(FuelFlowApiFactory.StartTime.UtcDateTime).AddDays(daysFromToday);
+
+    protected async Task<Guid> SeedWindowAsync(int daysFromToday, string region = "Copenhagen", int capacityLitres = 10_000)
+    {
+        await using var scope = NewScope();
+        var window = DeliveryWindow.Create(Day(daysFromToday), region, capacityLitres);
+        Db(scope).DeliveryWindows.Add(window);
+        await Db(scope).SaveChangesAsync(Ct);
+        return window.Id;
+    }
+
+    protected async Task<DeliveryWindow> LoadWindowAsync(Guid windowId)
+    {
+        await using var scope = NewScope();
+        return await Db(scope).DeliveryWindows.AsNoTracking().SingleAsync(w => w.Id == windowId, Ct);
+    }
+
+    protected async Task<Order> LoadOrderAsync(Guid orderId)
+    {
+        await using var scope = NewScope();
+        return await Db(scope).Orders.AsNoTracking().SingleAsync(o => o.Id == orderId, Ct);
+    }
+
+    protected static async Task<OrderDto> PlaceOrderAsync(Session customer, Guid productId, Guid addressId, int litres = 1000) =>
+        await Read<OrderDto>(await customer.Client.PostAsJsonAsync("/api/orders", new { productId, deliveryAddressId = addressId, litres }, Ct));
+
+    protected static async Task<OrderDto> ConfirmAsync(HttpClient dispatcher, Guid orderId) =>
+        await Read<OrderDto>(await dispatcher.PostAsync($"/api/dispatch/orders/{orderId}/confirm", null, Ct));
+
+    protected async Task<SchedulingResult> RunSchedulerAsync()
+    {
+        await using var scope = NewScope();
+        return await scope.ServiceProvider.GetRequiredService<SchedulingService>().RunAsync(Ct);
+    }
 
     protected static async Task<T> Read<T>(HttpResponseMessage response)
     {

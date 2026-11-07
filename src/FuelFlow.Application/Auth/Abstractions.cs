@@ -23,6 +23,9 @@ public interface ICustomerRepository
 public interface IUnitOfWork
 {
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Forgets all unsaved changes and loaded entities, so one failed unit of work cannot leak into the next.</summary>
+    void DiscardChanges();
 }
 
 public interface IPasswordService

@@ -147,6 +147,12 @@ namespace FuelFlow.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "FinalPrice", "FuelFlow.Domain.Orders.Order.FinalPrice#PriceBreakdown", b1 =>
                         {
                             b1.Property<decimal>("DiscountAmount")

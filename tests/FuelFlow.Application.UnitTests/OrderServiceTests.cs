@@ -2,6 +2,7 @@ using FluentValidation;
 using FuelFlow.Application.Auth;
 using FuelFlow.Application.Common;
 using FuelFlow.Application.Customers;
+using FuelFlow.Application.Dispatch;
 using FuelFlow.Application.Orders;
 using FuelFlow.Application.Products;
 using FuelFlow.Domain.Common;
@@ -9,6 +10,7 @@ using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Pricing;
 using FuelFlow.Domain.Products;
+using FuelFlow.Domain.Scheduling;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
@@ -21,6 +23,7 @@ public class OrderServiceTests
     private readonly ICustomerRepository _customers = Substitute.For<ICustomerRepository>();
     private readonly IAddressRepository _addresses = Substitute.For<IAddressRepository>();
     private readonly IProductRepository _products = Substitute.For<IProductRepository>();
+    private readonly IDeliveryWindowRepository _windows = Substitute.For<IDeliveryWindowRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly FakeTimeProvider _time = new(new DateTimeOffset(2026, 3, 2, 8, 0, 0, TimeSpan.Zero));
     private readonly Customer _customer = Customer.CreatePrivate("Anna Hansen", "+4512345678", "anna@example.com");
@@ -37,7 +40,7 @@ public class OrderServiceTests
         _products.GetAsync(_product.Id, Arg.Any<CancellationToken>()).Returns(_product);
 
         _service = new OrderService(
-            _orders, _customers, _addresses, _products, _unitOfWork, new PriceCalculator(new PricingOptions()), _time,
+            _orders, _customers, _addresses, _products, _windows, _unitOfWork, new PriceCalculator(new PricingOptions()), _time,
             new OrderRequestValidator(), new CancelOrderRequestValidator(), new PageRequestValidator());
     }
 
@@ -109,6 +112,34 @@ public class OrderServiceTests
 
         dto.Status.ShouldBe(OrderStatus.Cancelled);
         await _unitOfWork.Received(1).SaveChangesAsync(Ct);
+    }
+
+    [Fact]
+    public async Task CancelAsync_ScheduledOrder_ReleasesItsWindowCapacityInTheSameSave()
+    {
+        var window = DeliveryWindow.Create(new DateOnly(2026, 3, 5), "Copenhagen", 5000);
+        window.Book(1000);
+        var order = Order.Place(_customer, _address, _product, 1000, new PriceCalculator(new PricingOptions()), _time.GetUtcNow());
+        order.Confirm(_time.GetUtcNow());
+        order.Schedule(window.Id, _time.GetUtcNow());
+        _orders.GetAsync(order.Id, _customer.Id, Arg.Any<CancellationToken>()).Returns(order);
+        _windows.GetAsync(window.Id, Arg.Any<CancellationToken>()).Returns(window);
+
+        await _service.CancelAsync(_customer.Id, order.Id, new CancelOrderRequest("Changed my mind"), Ct);
+
+        window.BookedLitres.ShouldBe(0);
+        await _unitOfWork.Received(1).SaveChangesAsync(Ct);
+    }
+
+    [Fact]
+    public async Task CancelAsync_PendingOrder_DoesNotTouchAnyWindow()
+    {
+        var order = Order.Place(_customer, _address, _product, 1000, new PriceCalculator(new PricingOptions()), _time.GetUtcNow());
+        _orders.GetAsync(order.Id, _customer.Id, Arg.Any<CancellationToken>()).Returns(order);
+
+        await _service.CancelAsync(_customer.Id, order.Id, new CancelOrderRequest("Changed my mind"), Ct);
+
+        await _windows.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

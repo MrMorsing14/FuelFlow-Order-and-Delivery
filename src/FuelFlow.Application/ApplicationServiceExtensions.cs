@@ -1,6 +1,7 @@
 using FluentValidation;
 using FuelFlow.Application.Auth;
 using FuelFlow.Application.Customers;
+using FuelFlow.Application.Dispatch;
 using FuelFlow.Application.Orders;
 using FuelFlow.Application.Products;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,8 @@ public static class ApplicationServiceExtensions
         services.AddScoped<CustomerService>();
         services.AddScoped<ProductService>();
         services.AddScoped<OrderService>();
+        services.AddScoped<DispatchService>();
+        services.AddScoped<SchedulingService>();
         return services;
     }
 }

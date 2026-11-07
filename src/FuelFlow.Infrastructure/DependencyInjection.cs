@@ -1,5 +1,6 @@
 using FuelFlow.Application.Auth;
 using FuelFlow.Application.Customers;
+using FuelFlow.Application.Dispatch;
 using FuelFlow.Application.Orders;
 using FuelFlow.Application.Products;
 using FuelFlow.Domain.Users;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IDeliveryWindowRepository, DeliveryWindowRepository>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FuelFlowDbContext>());
         services.AddJwtAuth();
 

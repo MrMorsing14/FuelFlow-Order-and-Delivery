@@ -1,4 +1,5 @@
 using FuelFlow.Application.Auth;
+using FuelFlow.Application.Common;
 using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Pricing;
@@ -93,7 +94,7 @@ public class PersistenceTests(FuelFlowApiFactory factory) : IntegrationTestBase(
     }
 
     [Fact]
-    public async Task DeliveryWindow_TwoContextsBookTheSameWindow_SecondSaveThrowsConcurrencyException()
+    public async Task DeliveryWindow_TwoContextsBookTheSameWindow_SecondSaveThrowsConcurrencyConflict()
     {
         var ct = TestContext.Current.CancellationToken;
         var window = DeliveryWindow.Create(new DateOnly(2026, 3, 10), "Copenhagen", 10_000);
@@ -111,7 +112,7 @@ public class PersistenceTests(FuelFlowApiFactory factory) : IntegrationTestBase(
         windowB.Book(6000);
 
         await Db(scopeA).SaveChangesAsync(ct);
-        await Should.ThrowAsync<DbUpdateConcurrencyException>(() => Db(scopeB).SaveChangesAsync(ct));
+        await Should.ThrowAsync<ConcurrencyConflictException>(() => Db(scopeB).SaveChangesAsync(ct));
 
         await using var verify = NewScope();
         (await Db(verify).DeliveryWindows.SingleAsync(ct)).BookedLitres.ShouldBe(6000);

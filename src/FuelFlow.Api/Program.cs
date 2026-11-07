@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using FuelFlow.Api.Middleware;
+using FuelFlow.Api.Scheduling;
 using FuelFlow.Application;
 using FuelFlow.Domain.Pricing;
+using FuelFlow.Domain.Scheduling;
 using FuelFlow.Infrastructure;
 using FuelFlow.Infrastructure.Persistence;
 using FuelFlow.Infrastructure.Seeding;
@@ -37,6 +39,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<PricingOptions>().BindConfiguration(PricingOptions.SectionName);
 builder.Services.AddSingleton(sp => new PriceCalculator(sp.GetRequiredService<IOptions<PricingOptions>>().Value));
+builder.Services.AddOptions<DeliveryOptions>().BindConfiguration(DeliveryOptions.SectionName);
+builder.Services.AddSingleton(sp => new RegionMap(sp.GetRequiredService<IOptions<DeliveryOptions>>().Value.Regions));
+builder.Services.AddOptions<SchedulingOptions>().BindConfiguration(SchedulingOptions.SectionName);
+builder.Services.AddHostedService<SchedulingWorker>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 
@@ -52,6 +58,9 @@ if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString(DependencyIn
     throw new InvalidOperationException(
         $"Connection string '{DependencyInjection.ConnectionStringName}' is missing. Set ConnectionStrings__{DependencyInjection.ConnectionStringName}.");
 }
+
+// Build the region map now: invalid region configuration stops the app instead of failing on the first request.
+_ = app.Services.GetRequiredService<RegionMap>();
 
 // Migrations and demo data are applied automatically ONLY in Development.
 if (app.Environment.IsDevelopment())

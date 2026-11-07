@@ -1,4 +1,5 @@
 using FuelFlow.Application.Auth;
+using FuelFlow.Application.Common;
 using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Products;
@@ -23,18 +24,33 @@ public class FuelFlowDbContext(DbContextOptions<FuelFlowDbContext> options) : Db
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<DeliveryWindow> DeliveryWindows => Set<DeliveryWindow>();
 
-    // A pre-check in AuthService catches most duplicates; this catches two registrations racing each other.
+    public void DiscardChanges() => ChangeTracker.Clear();
+
+    // Turns database errors into application exceptions that the API maps to 409.
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         try
         {
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_users_Email" })
+        catch (DbUpdateConcurrencyException)
         {
+            // The xmin check failed: someone else changed the same order or delivery window first.
+            throw new ConcurrencyConflictException();
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_users_Email"))
+        {
+            // A pre-check in AuthService catches most duplicates; this catches two registrations racing each other.
             throw new EmailAlreadyRegisteredException();
         }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_delivery_windows_Date_Region"))
+        {
+            throw new DeliveryWindowExistsException();
+        }
     }
+
+    private static bool IsUniqueViolation(DbUpdateException ex, string constraintName) =>
+        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg && pg.ConstraintName == constraintName;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FuelFlowDbContext).Assembly);

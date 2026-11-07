@@ -29,6 +29,10 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne<Product>().WithMany().HasForeignKey(o => o.ProductId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<DeliveryWindow>().WithMany().HasForeignKey(o => o.DeliveryWindowId).OnDelete(DeleteBehavior.Restrict);
 
+        // Optimistic concurrency, like on delivery windows: a customer cancelling while a dispatcher confirms
+        // (or two scheduler runs) cannot both win; the loser gets a 409.
+        builder.Property<uint>("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+
         builder.HasIndex(o => new { o.CustomerId, o.CreatedAt });
         builder.HasIndex(o => o.Status);
         builder.HasIndex(o => o.DeliveryWindowId);

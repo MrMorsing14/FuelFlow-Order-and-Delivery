@@ -2,6 +2,7 @@ using FluentValidation;
 using FuelFlow.Application.Auth;
 using FuelFlow.Application.Common;
 using FuelFlow.Application.Customers;
+using FuelFlow.Application.Dispatch;
 using FuelFlow.Application.Products;
 using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Orders;
@@ -43,6 +44,15 @@ public interface IOrderRepository
 
     /// <summary>One customer's orders, newest first.</summary>
     Task<PagedResult<Order>> PageAsync(Guid customerId, PageRequest page, CancellationToken cancellationToken);
+
+    /// <summary>Any customer's order (for dispatchers).</summary>
+    Task<Order?> GetAnyAsync(Guid orderId, CancellationToken cancellationToken);
+
+    /// <summary>All customers' orders for the dispatcher list, oldest first.</summary>
+    Task<PagedResult<DispatchOrderRow>> PageForDispatchAsync(DispatchOrderQuery query, PageRequest page, CancellationToken cancellationToken);
+
+    /// <summary>Confirmed orders still waiting for a delivery window, with the postal code to deliver to.</summary>
+    Task<IReadOnlyList<ConfirmedOrder>> ListConfirmedAsync(CancellationToken cancellationToken);
 }
 
 public static class OrderMappings
@@ -73,6 +83,7 @@ public sealed class OrderService(
     ICustomerRepository customers,
     IAddressRepository addresses,
     IProductRepository products,
+    IDeliveryWindowRepository windows,
     IUnitOfWork unitOfWork,
     PriceCalculator calculator,
     TimeProvider timeProvider,
@@ -116,6 +127,13 @@ public sealed class OrderService(
         var order = await FindOrderAsync(customerId, orderId, ct);
 
         order.Cancel(request.Reason, timeProvider.GetUtcNow());
+
+        // A scheduled order holds capacity in its window; give it back. Same save, so both changes happen or neither does.
+        if (order.DeliveryWindowId is { } windowId && await windows.GetAsync(windowId, ct) is { } window)
+        {
+            window.Release(order.OrderedLitres);
+        }
+
         await unitOfWork.SaveChangesAsync(ct);
         return order.ToDto();
     }
