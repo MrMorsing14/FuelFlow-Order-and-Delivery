@@ -48,7 +48,7 @@ Authentication: send `Authorization: Bearer <token>` (get the token from `POST /
 | `GET /api/dispatch/regions` | The configured regions and their postal code ranges |
 | `POST /api/dispatch/orders/{id}/confirm` | Pending to Confirmed |
 | `POST /api/dispatch/orders/{id}/out-for-delivery` | Scheduled to OutForDelivery |
-| `POST /api/dispatch/orders/{id}/deliver` | Body `{ "deliveredLitres": 950 }`. Within plus or minus 10 percent of ordered. |
+| `POST /api/dispatch/orders/{id}/deliver` | Body `{ "deliveredLitres": 950, "reason": null }`. At most 10 percent above ordered. More than 10 percent below ordered needs a `reason` (max 500 characters), which the customer then sees as `shortDeliveryReason` on the order. |
 | `GET /api/dispatch/delivery-windows?from=&to=&region=` | Windows from today by default |
 | `POST /api/dispatch/delivery-windows` | Body `{ "date": "2026-03-05", "region": "Copenhagen", "capacityLitres": 10000 }` |
 

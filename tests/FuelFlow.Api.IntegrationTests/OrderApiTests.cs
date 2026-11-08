@@ -4,6 +4,7 @@ using FuelFlow.Application.Common;
 using FuelFlow.Application.Orders;
 using FuelFlow.Domain.Orders;
 using FuelFlow.Domain.Pricing;
+using FuelFlow.Domain.Products;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
@@ -29,6 +30,51 @@ public class OrderApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
         quote.DisplayIncVat.ShouldBeTrue();
         await using var scope = NewScope();
         (await Db(scope).Orders.CountAsync(Ct)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Mgo_PrivateCustomer_QuoteAndOrderAreRefusedWith400()
+    {
+        var anna = await RegisterCustomerAsync();
+        var mgoId = await SeedProductAsync(ProductType.Mgo);
+        var address = await CreateAddressAsync(anna.Client, tankCapacityLitres: 200_000);
+
+        var quote = await anna.Client.PostAsJsonAsync("/api/quotes", OrderBody(mgoId, address.Id, 20_000), Ct);
+        var order = await anna.Client.PostAsJsonAsync("/api/orders", OrderBody(mgoId, address.Id, 20_000), Ct);
+
+        quote.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        order.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        order.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+        (await order.Content.ReadAsStringAsync(Ct)).ShouldContain("business customers");
+        await using var scope = NewScope();
+        (await Db(scope).Orders.CountAsync(Ct)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Mgo_BusinessCustomer_CanOrderOneTruckAndGetsTheExplanationForAnAwkwardAmount()
+    {
+        var business = await RegisterCustomerAsync("kontor@jensen.example", business: true);
+        var mgoId = await SeedProductAsync(ProductType.Mgo, pricePerLitre: 10m);
+        var address = await CreateAddressAsync(business.Client, tankCapacityLitres: 200_000);
+
+        var order = await PlaceOrderAsync(business, mgoId, address.Id, 42_000);
+        var tooMuchForOneTruck = await business.Client.PostAsJsonAsync("/api/quotes", OrderBody(mgoId, address.Id, 45_000), Ct);
+
+        order.OrderedLitres.ShouldBe(42_000);
+        tooMuchForOneTruck.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await tooMuchForOneTruck.Content.ReadAsStringAsync(Ct)).ShouldContain("52.000 litres or more");
+    }
+
+    [Fact]
+    public async Task Products_ListMarksMgoAsBusinessOnly()
+    {
+        await SeedProductAsync(ProductType.Mgo);
+        await SeedProductAsync(ProductType.Diesel);
+
+        var products = await Read<List<FuelFlow.Application.Products.ProductDto>>(await Factory.CreateClient().GetAsync("/api/products", Ct));
+
+        products.Single(p => p.Type == ProductType.Mgo).RequiresBusinessCustomer.ShouldBeTrue();
+        products.Single(p => p.Type == ProductType.Diesel).RequiresBusinessCustomer.ShouldBeFalse();
     }
 
     [Fact]

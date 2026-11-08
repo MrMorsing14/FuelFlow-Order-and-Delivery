@@ -17,6 +17,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Id).ValueGeneratedNever();
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(o => o.CancellationReason).HasMaxLength(500);
+        builder.Property(o => o.ShortDeliveryReason).HasMaxLength(500);
 
         // Complex types: the price snapshot is stored as columns on the orders table (Price_NetAmount, ...)
         // rather than a separate table. Final price is optional until the order is delivered.

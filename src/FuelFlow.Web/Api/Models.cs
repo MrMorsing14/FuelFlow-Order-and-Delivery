@@ -7,7 +7,9 @@ public sealed record LoginResponse(string AccessToken, string TokenType, DateTim
 
 public sealed record RegisterRequest(string Email, string Password, string Type, string Phone, string? FullName, string? CompanyName, string? Cvr);
 
-public sealed record Product(Guid Id, string Type, decimal PricePerLitreExVat, decimal PricePerLitreIncVat);
+public sealed record Product(Guid Id, string Type, decimal PricePerLitreExVat, decimal PricePerLitreIncVat, bool RequiresBusinessCustomer = false);
+
+public sealed record Customer(Guid Id, string Type);
 
 public sealed record Address(Guid Id, string Street, string PostalCode, string City, int TankCapacityLitres, string? AccessNotes);
 
@@ -45,6 +47,7 @@ public sealed record Order(
     Guid? DeliveryWindowId,
     int? DeliveredLitres,
     string? CancellationReason,
+    string? ShortDeliveryReason,
     DateTimeOffset CreatedAt,
     DateTimeOffset? DeliveredAt)
 {

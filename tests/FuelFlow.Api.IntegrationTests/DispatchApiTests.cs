@@ -188,6 +188,32 @@ public class DispatchApiTests(FuelFlowApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task Deliver_MoreThanTenPercentUnderWithAReason_SucceedsAndTheCustomerSeesTheReason()
+    {
+        var (order, dispatcher, customer) = await OutForDeliveryOrderAsync(1000);
+
+        var response = await dispatcher.PostAsJsonAsync(
+            $"/api/dispatch/orders/{order.Id}/deliver", new { deliveredLitres = 600, reason = "truck was out of product" }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var seenByCustomer = await Read<OrderDto>(await customer.Client.GetAsync($"/api/orders/{order.Id}", Ct));
+        seenByCustomer.DeliveredLitres.ShouldBe(600);
+        seenByCustomer.ShortDeliveryReason.ShouldBe("truck was out of product");
+    }
+
+    [Fact]
+    public async Task Deliver_MoreThanTenPercentOverEvenWithAReason_Returns400()
+    {
+        var (order, dispatcher, _) = await OutForDeliveryOrderAsync(1000);
+
+        var response = await dispatcher.PostAsJsonAsync(
+            $"/api/dispatch/orders/{order.Id}/deliver", new { deliveredLitres = 1101, reason = "extra" }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await LoadOrderAsync(order.Id)).Status.ShouldBe(OrderStatus.OutForDelivery);
+    }
+
+    [Fact]
     public async Task FullHappyPath_PlaceConfirmScheduleOutForDeliveryDeliver_CustomerSeesRecalculatedTotals()
     {
         var customer = await RegisterCustomerAsync();

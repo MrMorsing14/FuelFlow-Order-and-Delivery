@@ -28,6 +28,7 @@ public sealed record OrderDto(
     Guid? DeliveryWindowId,
     int? DeliveredLitres,
     string? CancellationReason,
+    string? ShortDeliveryReason,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ConfirmedAt,
     DateTimeOffset? ScheduledAt,
@@ -59,7 +60,7 @@ public static class OrderMappings
 {
     public static OrderDto ToDto(this Order o) => new(
         o.Id, o.ProductId, o.DeliveryAddressId, o.OrderedLitres, o.Status, o.Price, o.FinalPrice, o.DeliveryWindowId,
-        o.DeliveredLitres, o.CancellationReason, o.CreatedAt, o.ConfirmedAt, o.ScheduledAt, o.OutForDeliveryAt, o.DeliveredAt, o.CancelledAt);
+        o.DeliveredLitres, o.CancellationReason, o.ShortDeliveryReason, o.CreatedAt, o.ConfirmedAt, o.ScheduledAt, o.OutForDeliveryAt, o.DeliveredAt, o.CancelledAt);
 }
 
 public sealed class OrderRequestValidator : AbstractValidator<OrderRequest>
@@ -97,7 +98,7 @@ public sealed class OrderService(
         await orderValidator.ValidateAndThrowAsync(request, ct);
         var (customer, address, product) = await LoadAsync(customerId, request, ct);
 
-        calculator.EnsureValidQuantity(request.Litres, address.TankCapacityLitres);
+        calculator.EnsureCanOrder(customer, product, request.Litres, address.TankCapacityLitres);
         return calculator.Calculate(product.PriceAt(timeProvider.GetUtcNow()), request.Litres, customer.Type);
     }
 

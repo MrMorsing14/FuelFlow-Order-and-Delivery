@@ -45,7 +45,7 @@ public class SeedingTests(FuelFlowApiFactory factory) : IntegrationTestBase(fact
         (await db.DeliveryAddresses.CountAsync(ct)).ShouldBe(2);
 
         var products = await db.Products.Include(p => p.PriceHistory).ToListAsync(ct);
-        products.Select(p => p.Type).ShouldBe([ProductType.HeatingOil, ProductType.Diesel, ProductType.Hvo], ignoreOrder: true);
+        products.Select(p => p.Type).ShouldBe([ProductType.HeatingOil, ProductType.Diesel, ProductType.Hvo, ProductType.Mgo], ignoreOrder: true);
         products.ShouldAllBe(p => p.PriceAt(_now) > 0);
 
         var windows = await db.DeliveryWindows.ToListAsync(ct);
@@ -87,7 +87,7 @@ public class SeedingTests(FuelFlowApiFactory factory) : IntegrationTestBase(fact
 
         await using var verify = NewScope();
         (await Db(verify).Users.CountAsync(ct)).ShouldBe(4);
-        (await Db(verify).Products.CountAsync(ct)).ShouldBe(3);
+        (await Db(verify).Products.CountAsync(ct)).ShouldBe(4);
     }
 
     [Fact]

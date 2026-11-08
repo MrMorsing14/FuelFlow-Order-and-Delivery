@@ -24,7 +24,11 @@ public sealed class CreateDeliveryWindowRequestValidator : AbstractValidator<Cre
 
 public sealed class DeliverOrderRequestValidator : AbstractValidator<DeliverOrderRequest>
 {
-    public DeliverOrderRequestValidator() => RuleFor(x => x.DeliveredLitres).GreaterThan(0);
+    public DeliverOrderRequestValidator()
+    {
+        RuleFor(x => x.DeliveredLitres).GreaterThan(0);
+        RuleFor(x => x.Reason).MaximumLength(500);
+    }
 }
 
 /// <summary>Everything the dispatcher (or admin) does: see all orders, move them along, manage delivery windows.</summary>
@@ -64,7 +68,7 @@ public sealed class DispatchService(
     public async Task<OrderDto> DeliverAsync(Guid orderId, DeliverOrderRequest request, CancellationToken ct)
     {
         await deliverValidator.ValidateAndThrowAsync(request, ct);
-        return await ChangeAsync(orderId, (order, now) => order.Deliver(request.DeliveredLitres, now), ct);
+        return await ChangeAsync(orderId, (order, now) => order.Deliver(request.DeliveredLitres, now, request.Reason), ct);
     }
 
     public async Task<IReadOnlyList<DeliveryWindowDto>> ListWindowsAsync(DeliveryWindowFilter filter, CancellationToken ct)

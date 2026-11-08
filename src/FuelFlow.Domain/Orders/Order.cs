@@ -42,6 +42,9 @@ public sealed class Order
     public int? DeliveredLitres { get; private set; }
     public string? CancellationReason { get; private set; }
 
+    /// <summary>Why much less than ordered (more than 10 % under) was delivered. Only set in that case.</summary>
+    public string? ShortDeliveryReason { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ConfirmedAt { get; private set; }
     public DateTimeOffset? ScheduledAt { get; private set; }
@@ -57,7 +60,7 @@ public sealed class Order
             throw new DomainValidationException("The delivery address does not belong to the customer.");
         }
 
-        calculator.EnsureValidQuantity(litres, address.TankCapacityLitres);
+        calculator.EnsureCanOrder(customer, product, litres, address.TankCapacityLitres);
         var price = calculator.Calculate(product.PriceAt(now), litres, customer.Type);
 
         return new Order
@@ -97,19 +100,28 @@ public sealed class Order
         OutForDeliveryAt = now;
     }
 
-    /// <summary>Delivered litres may differ from ordered litres by at most 10 %.</summary>
-    public void Deliver(int deliveredLitres, DateTimeOffset now)
+    /// <summary>
+    /// Delivered litres may be at most 10 % above the ordered litres. Up to 10 % below is fine as is; delivering
+    /// even less is allowed, but then a reason is required (for example "truck was out of product") and the customer sees it.
+    /// </summary>
+    public void Deliver(int deliveredLitres, DateTimeOffset now, string? shortDeliveryReason = null)
     {
         EnsureCanMoveTo(OrderStatus.Delivered);
 
-        if (deliveredLitres <= 0 || Math.Abs((long)deliveredLitres - OrderedLitres) * 10 > OrderedLitres)
+        if (deliveredLitres <= 0 || ((long)deliveredLitres - OrderedLitres) * 10 > OrderedLitres)
         {
             throw new DomainValidationException(
-                $"Delivered litres must be within 10 % of the ordered {OrderedLitres} litres.");
+                $"Delivered litres must be more than zero and at most 10 % above the ordered {OrderedLitres} litres.");
         }
+
+        var tooLittle = ((long)OrderedLitres - deliveredLitres) * 10 > OrderedLitres;
+        var reason = tooLittle
+            ? Guard.NotBlank(shortDeliveryReason, "A reason for delivering more than 10 % less than ordered")
+            : null;
 
         MoveTo(OrderStatus.Delivered);
         DeliveredLitres = deliveredLitres;
+        ShortDeliveryReason = reason;
         FinalPrice = PriceCalculator.Recalculate(Price, deliveredLitres);
         DeliveredAt = now;
     }

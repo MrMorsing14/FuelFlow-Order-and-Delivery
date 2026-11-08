@@ -7,6 +7,9 @@ public enum ProductType
     HeatingOil,
     Diesel,
     Hvo,
+
+    /// <summary>Marine gas oil (marine diesel) for large ships such as ferries. Business customers only.</summary>
+    Mgo,
 }
 
 public sealed class PriceHistory
@@ -39,6 +42,9 @@ public sealed class Product
 
     public Guid Id { get; private set; }
     public ProductType Type { get; private set; }
+
+    /// <summary>Some products are not sold to private customers. This is the one place that says which.</summary>
+    public bool RequiresBusinessCustomer => Type == ProductType.Mgo;
 
     /// <summary>Append-only: prices are never overwritten, so old orders keep their price.</summary>
     public IReadOnlyList<PriceHistory> PriceHistory => _priceHistory;

@@ -1,11 +1,68 @@
 using FuelFlow.Domain.Common;
+using System.Globalization;
 using FuelFlow.Domain.Customers;
+using FuelFlow.Domain.Products;
 
 namespace FuelFlow.Domain.Pricing;
 
 /// <summary>The single place where prices are calculated.</summary>
 public sealed class PriceCalculator(PricingOptions options)
 {
+    // Same formatting as the UI (1.000), without depending on the machine's culture data.
+    private static readonly NumberFormatInfo _danish = new() { NumberGroupSeparator = "." };
+
+    /// <summary>
+    /// Everything that decides whether this customer may order this much of this product to this address.
+    /// Used for both quotes and orders, so they always agree.
+    /// MGO has three extra rules: business customers only, its own minimum, and a truck limit. One truck carries
+    /// <see cref="PricingOptions.MgoTruckCapacityLitres"/>; an order above that needs more trucks, and the last
+    /// truck must carry at least the MGO minimum or it is not worth sending. With 42,000 per truck and a 10,000 minimum:
+    /// 42,001 to 51,999 is refused, 52,000 is fine, 84,001 to 93,999 is refused, and so on.
+    /// </summary>
+    public void EnsureCanOrder(Customer customer, Product product, int litres, int tankCapacityLitres)
+    {
+        if (product.RequiresBusinessCustomer && customer.Type != CustomerType.Business)
+        {
+            throw new DomainValidationException($"{product.Type} can only be ordered by business customers.");
+        }
+
+        if (product.Type == ProductType.Mgo)
+        {
+            EnsureMgoQuantity(litres);
+        }
+
+        EnsureValidQuantity(litres, tankCapacityLitres);
+    }
+
+    private void EnsureMgoQuantity(int litres)
+    {
+        var minimum = options.MgoMinimumOrderLitres;
+        var truck = options.MgoTruckCapacityLitres;
+
+        if (litres < minimum)
+        {
+            throw new DomainValidationException($"Minimum order of MGO is {Format(minimum)} litres.");
+        }
+
+        var lastTruck = litres % truck;
+        if (litres <= truck || lastTruck == 0 || lastTruck >= minimum)
+        {
+            return;
+        }
+
+        var fullTrucks = litres - lastTruck;
+        var nextValid = fullTrucks + minimum;
+        var accepted = fullTrucks == truck
+            ? $"{Format(fullTrucks)} litres or less, or {Format(nextValid)} litres or more"
+            : $"{Format(fullTrucks)} litres, or {Format(nextValid)} litres or more";
+        throw new DomainValidationException(
+            $"We can't accommodate {Format(litres)} litres of MGO. One truck carries {Format(truck)} litres, " +
+            $"and we can't send another truck for just {Format(lastTruck)} litres extra: it must carry at least {Format(minimum)} litres. " +
+            $"Order {accepted}.");
+    }
+
+    private static string Format(int litres) => litres.ToString("N0", _danish);
+
     /// <summary>Min order and tank capacity. Used for both quotes and orders.</summary>
     public void EnsureValidQuantity(int litres, int tankCapacityLitres)
     {

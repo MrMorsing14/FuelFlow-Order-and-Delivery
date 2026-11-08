@@ -19,7 +19,7 @@ internal static class Samples
     public static Address Address(Guid? id = null) => new(id ?? AddressId, "Vejen 1", "2100", "København Ø", 3000, null);
 
     public static Order Order(string status, Guid? id = null, int litres = 1000) => new(
-        id ?? Guid.NewGuid(), DieselId, AddressId, litres, status, Price(), null, null, null, null, TestApp.Now, null);
+        id ?? Guid.NewGuid(), DieselId, AddressId, litres, status, Price(), null, null, null, null, null, TestApp.Now, null);
 
     public static DispatchOrder Dispatch(string status, Guid? id = null) =>
         new(Order(status, id), "Anna Hansen", "+4512345678", Address(), "Copenhagen", null);
@@ -190,6 +190,27 @@ public class NewOrderPageTests
         cut.Find("form").Submit();
     }
 
+    [Theory]
+    [InlineData("Private", 1)]
+    [InlineData("Business", 2)]
+    public void Render_BusinessOnlyProduct_IsOnlyOfferedToBusinessCustomers(string customerType, int expectedProducts)
+    {
+        using var app = new TestApp();
+        app.Http.On(HttpMethod.Get, "api/products", new[]
+        {
+            new Product(Samples.DieselId, "Diesel", 10m, 12.5m),
+            new Product(Guid.NewGuid(), "Mgo", 9.9m, 12.4m, RequiresBusinessCustomer: true),
+        });
+        // The fake matches by path prefix and the first registration wins, so the more specific path goes first.
+        app.Http.On(HttpMethod.Get, "api/customers/me/addresses", new[] { Samples.Address() });
+        app.Http.On(HttpMethod.Get, "api/customers/me", new Customer(Guid.NewGuid(), customerType));
+
+        var cut = app.Render<NewOrder>();
+
+        cut.WaitForAssertion(() => cut.FindAll("select").Count.ShouldBe(2), TimeSpan.FromSeconds(5));
+        cut.FindAll("select")[0].QuerySelectorAll("option").Length.ShouldBe(expectedProducts + 1, "plus the 'Choose a product' entry");
+    }
+
     [Fact]
     public void Render_NoAddress_ExplainsAnAddressIsNeededFirst()
     {
@@ -310,6 +331,18 @@ public class MyOrdersPageTests
     }
 
     [Fact]
+    public void Render_DeliveredMuchLessThanOrdered_ShowsTheReasonToTheCustomer()
+    {
+        using var app = new TestApp();
+        var delivered = Samples.Order("Delivered") with { DeliveredLitres = 600, ShortDeliveryReason = "truck was out of product" };
+        app.Http.On(HttpMethod.Get, "api/orders", Samples.Page(delivered));
+
+        var cut = app.Render<MyOrders>();
+
+        cut.WaitForAssertion(() => cut.Find("td.actions").TextContent.ShouldContain("truck was out of product"), TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public void Cancel_NeedsAReasonThenPostsItAndReloads()
     {
         using var app = new TestApp();
@@ -385,6 +418,21 @@ public class DispatchPageTests
     }
 
     [Fact]
+    public void Render_DeliveredDifferentFromOrdered_ShowsDeliveredOverOrdered()
+    {
+        using var app = new TestApp();
+        var shortDelivery = Samples.Dispatch("Delivered") with { Order = Samples.Order("Delivered") with { DeliveredLitres = 960 } };
+        var exactDelivery = Samples.Dispatch("Delivered") with { Order = Samples.Order("Delivered") with { DeliveredLitres = 1000 } };
+
+        var cut = RenderWith(app, shortDelivery, exactDelivery, Samples.Dispatch("Pending"));
+
+        var litres = cut.FindAll("tbody tr").Select(tr => tr.QuerySelector("td.num")!.TextContent.Trim()).ToList();
+        litres[0].ShouldBe("960 L / 1.000 L");
+        litres[1].ShouldBe("1.000 L");
+        litres[2].ShouldBe("1.000 L");
+    }
+
+    [Fact]
     public void Confirm_CallsTheApiAndReloadsTheList()
     {
         using var app = new TestApp();
@@ -429,7 +477,29 @@ public class DispatchPageTests
         cut.FindAll("td.actions button")[0].Click();
 
         cut.WaitForAssertion(() => app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver").ShouldNotBeEmpty(), TimeSpan.FromSeconds(5));
-        app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver").Single().Body.ShouldBe("""{"deliveredLitres":950}""");
+        app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver").Single().Body.ShouldBe("""{"deliveredLitres":950,"reason":null}""");
+    }
+
+    [Fact]
+    public void Deliver_MoreThanTenPercentUnder_NeedsAReasonThenPostsIt()
+    {
+        using var app = new TestApp();
+        var order = Samples.Dispatch("OutForDelivery");
+        app.Http.On(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver", Samples.Order("Delivered", order.Order.Id));
+        var cut = RenderWith(app, order);
+
+        cut.Find("td.actions button").Click();
+        cut.FindAll("td.actions input").Count.ShouldBe(1, "no reason field while the amount is within 10 %");
+        cut.Find("td.actions input").Change("800");
+
+        cut.FindAll("td.actions input").Count.ShouldBe(2);
+        cut.FindAll("td.actions button")[0].HasAttribute("disabled").ShouldBeTrue("a reason is required");
+        cut.FindAll("td.actions input")[1].Input("truck was out of product");
+        cut.FindAll("td.actions button")[0].Click();
+
+        cut.WaitForAssertion(() => app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver").ShouldNotBeEmpty(), TimeSpan.FromSeconds(5));
+        app.Http.Calls(HttpMethod.Post, $"api/dispatch/orders/{order.Order.Id}/deliver").Single().Body
+            .ShouldBe("""{"deliveredLitres":800,"reason":"truck was out of product"}""");
     }
 
     [Fact]

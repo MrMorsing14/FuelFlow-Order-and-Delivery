@@ -11,7 +11,8 @@ namespace FuelFlow.Application.Dispatch;
 /// <param name="Date">The planned delivery date (the date of the order's delivery window).</param>
 public sealed record DispatchOrderFilter(OrderStatus? Status, string? Region, DateOnly? Date);
 
-public sealed record DeliverOrderRequest(int DeliveredLitres);
+/// <param name="Reason">Required when delivering more than 10 % less than ordered.</param>
+public sealed record DeliverOrderRequest(int DeliveredLitres, string? Reason = null);
 
 public sealed record CreateDeliveryWindowRequest(DateOnly Date, string Region, int CapacityLitres);
 

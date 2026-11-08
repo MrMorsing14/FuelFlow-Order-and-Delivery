@@ -52,7 +52,17 @@ else
                     <td>@Format.Date(order.CreatedAt)</td>
                     <td>@row.CustomerName<br /><span class="muted">@row.CustomerPhone</span></td>
                     <td>@row.Address.Street, @row.Address.PostalCode @row.Address.City<br /><span class="muted">@row.Region</span></td>
-                    <td class="num">@Format.Litres(order.OrderedLitres)</td>
+                    <td class="num">
+                        @* Delivered orders that came in under or over the ordered amount show "delivered / ordered". *@
+                        @if (order.DeliveredLitres is { } delivered && delivered != order.OrderedLitres)
+                        {
+                            @($"{Format.Litres(delivered)} / {Format.Litres(order.OrderedLitres)}")
+                        }
+                        else
+                        {
+                            @Format.Litres(order.OrderedLitres)
+                        }
+                    </td>
                     <td>@(row.DeliveryDate is { } date ? Format.Date(date) : "Not planned")</td>
                     <td><span class="badge @order.Status.ToLowerInvariant()">@order.Status</span></td>
                     <td class="actions">
@@ -69,7 +79,11 @@ else
                                 break;
                             case "OutForDelivery" when _delivering == order.Id:
                                 <input type="number" min="1" aria-label="Delivered litres" @bind="_deliveredLitres" />
-                                <button disabled="@(_busy || _deliveredLitres <= 0)" @onclick="() => DeliverAsync(order.Id)">Save</button>
+                                @if (NeedsReason(order))
+                                {
+                                    <input placeholder="Reason, e.g. truck was out of product" aria-label="Reason for delivering less" @bind="_reason" @bind:event="oninput" />
+                                }
+                                <button disabled="@(_busy || _deliveredLitres <= 0 || (NeedsReason(order) && string.IsNullOrWhiteSpace(_reason)))" @onclick="() => DeliverAsync(order)">Save</button>
                                 <button class="link" @onclick="() => _delivering = null">Cancel</button>
                                 break;
                             case "OutForDelivery":
@@ -102,6 +116,7 @@ else
     private int _page = 1;
     private Guid? _delivering;
     private int _deliveredLitres;
+    private string _reason = "";
     private bool _busy;
     private ApiException? _error;
 
@@ -148,11 +163,15 @@ else
     {
         _delivering = order.Id;
         _deliveredLitres = order.OrderedLitres;
+        _reason = "";
     }
 
-    private Task DeliverAsync(Guid id) => RunAsync(async () =>
+    // More than 10 % under the ordered amount needs a reason (the API enforces the same rule). Long maths so huge numbers cannot overflow.
+    private bool NeedsReason(Order order) => _deliveredLitres > 0 && ((long)order.OrderedLitres - _deliveredLitres) * 10 > order.OrderedLitres;
+
+    private Task DeliverAsync(Order order) => RunAsync(async () =>
     {
-        await Api.DeliverAsync(id, _deliveredLitres);
+        await Api.DeliverAsync(order.Id, _deliveredLitres, NeedsReason(order) ? _reason.Trim() : null);
         _delivering = null;
     });
 

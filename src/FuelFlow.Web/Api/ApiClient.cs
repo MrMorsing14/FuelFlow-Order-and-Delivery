@@ -18,6 +18,8 @@ public sealed class ApiClient(HttpClient http, AuthSession session)
     // ---- customer
     public Task<List<Product>> GetProductsAsync() => SendAsync<List<Product>>(HttpMethod.Get, "api/products");
 
+    public Task<Customer> GetProfileAsync() => SendAsync<Customer>(HttpMethod.Get, "api/customers/me");
+
     public Task<List<Address>> GetAddressesAsync() => SendAsync<List<Address>>(HttpMethod.Get, "api/customers/me/addresses");
 
     public Task CreateAddressAsync(AddressRequest request) => SendAsync(HttpMethod.Post, "api/customers/me/addresses", request);
@@ -51,7 +53,8 @@ public sealed class ApiClient(HttpClient http, AuthSession session)
 
     public Task StartDeliveryAsync(Guid id) => SendAsync(HttpMethod.Post, $"api/dispatch/orders/{id}/out-for-delivery");
 
-    public Task DeliverAsync(Guid id, int deliveredLitres) => SendAsync(HttpMethod.Post, $"api/dispatch/orders/{id}/deliver", new { deliveredLitres });
+    public Task DeliverAsync(Guid id, int deliveredLitres, string? reason) =>
+        SendAsync(HttpMethod.Post, $"api/dispatch/orders/{id}/deliver", new { deliveredLitres, reason });
 
     private static void AddIfSet(List<string> query, string name, string? value)
     {

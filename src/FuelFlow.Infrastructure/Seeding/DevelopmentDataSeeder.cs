@@ -52,16 +52,17 @@ public sealed class DevelopmentDataSeeder(
         db.Products.AddRange(
             Product.Create(ProductType.HeatingOil, 11.50m, now.AddDays(-1)),
             Product.Create(ProductType.Diesel, 12.75m, now.AddDays(-1)),
-            Product.Create(ProductType.Hvo, 14.20m, now.AddDays(-1)));
+            Product.Create(ProductType.Hvo, 14.20m, now.AddDays(-1)),
+            Product.Create(ProductType.Mgo, 9.90m, now.AddDays(-1)));
 
-        // One truck per region per day, for the next 14 days. Regions are defined by postal code ranges
-        // in configuration (added together with the scheduler).
+        // One window per region per day, for the next 14 days. 50,000 L leaves room for an MGO order (one truck carries up to
+        // 42,000 L) next to other orders. Regions are defined by postal code ranges in configuration.
         var today = DateOnly.FromDateTime(now.UtcDateTime);
         for (var day = 1; day <= 14; day++)
         {
             foreach (var region in new[] { "Copenhagen", "Aarhus" })
             {
-                db.DeliveryWindows.Add(DeliveryWindow.Create(today.AddDays(day), region, 10_000));
+                db.DeliveryWindows.Add(DeliveryWindow.Create(today.AddDays(day), region, 50_000));
             }
         }
 

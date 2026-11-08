@@ -142,6 +142,10 @@ namespace FuelFlow.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ShortDeliveryReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

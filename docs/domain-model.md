@@ -59,6 +59,7 @@ classDiagram
         +Guid? DeliveryWindowId
         +int? DeliveredLitres
         +string? CancellationReason
+        +string? ShortDeliveryReason
         +Place(...)$ Order
         +Confirm(now)
         +Schedule(windowId, now)
@@ -132,7 +133,7 @@ Reading notes:
 
 - `Order` and `DeliveryWindow` are the two classes with real behaviour. Everything that changes an order goes through its methods, never by setting `Status` directly.
 - `PriceBreakdown` is an immutable record stored on the order at order time. It never changes. The final price after delivery is a second copy (`FinalPrice`).
-- Enums: `UserRole` (Customer, Dispatcher, Admin), `CustomerType` (Private, Business), `ProductType` (HeatingOil, Diesel, Hvo), `OrderStatus` (Pending, Confirmed, Scheduled, OutForDelivery, Delivered, Cancelled).
+- Enums: `UserRole` (Customer, Dispatcher, Admin), `CustomerType` (Private, Business), `ProductType` (HeatingOil, Diesel, Hvo, Mgo), `OrderStatus` (Pending, Confirmed, Scheduled, OutForDelivery, Delivered, Cancelled).
 
 ## 2. Layer classes: use cases, ports and adapters
 

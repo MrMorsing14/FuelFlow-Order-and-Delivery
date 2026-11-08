@@ -42,6 +42,10 @@ else
                         {
                             <span class="muted">@order.CancellationReason</span>
                         }
+                        else if (order.ShortDeliveryReason is not null)
+                        {
+                            <span class="muted">Delivered less than ordered: @order.ShortDeliveryReason</span>
+                        }
                     </td>
                 </tr>
             }

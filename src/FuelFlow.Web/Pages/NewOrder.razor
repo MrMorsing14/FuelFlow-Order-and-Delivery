@@ -72,7 +72,16 @@ else
     {
         try
         {
-            _products = await Api.GetProductsAsync();
+            var products = await Api.GetProductsAsync();
+
+            // Products for business customers only (MGO) are hidden from private customers. The API refuses them anyway;
+            // this just keeps the list honest. The profile is only needed when such a product exists.
+            if (products.Any(p => p.RequiresBusinessCustomer) && (await Api.GetProfileAsync()).Type != "Business")
+            {
+                products = products.Where(p => !p.RequiresBusinessCustomer).ToList();
+            }
+
+            _products = products;
             _addresses = await Api.GetAddressesAsync();
         }
         catch (ApiException ex)

@@ -76,11 +76,32 @@ Unit price 10.00 DKK per litre unless stated.
 | Private, 5,000 L | no discount for private customers | 62,500.00 incl. VAT |
 | Rounding | 1001 L at 0.005 = 5.005 | 5.01 (not 5.00) |
 
+## 3a. MGO (marine diesel)
+
+MGO is for large ships such as ferries. It has its own rules on top of the normal ones, checked in `PriceCalculator.EnsureCanOrder` for both quotes and orders (so a quote never promises what the order would refuse):
+
+- **Business customers only.** A private customer gets 400 with a ProblemDetails body, and the New order page does not offer MGO to them.
+- **Minimum 10,000 L** (`Pricing:MgoMinimumOrderLitres`).
+- **One truck carries at most 42,000 L** (`Pricing:MgoTruckCapacityLitres`). An order above that needs more trucks, but we do not send an extra truck for a small top-up: the last truck must carry at least the 10,000 L minimum.
+- The tank capacity of the delivery address still applies on top.
+
+| MGO litres | Result |
+|---|---|
+| 9,999 | rejected, minimum is 10,000 |
+| 10,000 to 42,000 | accepted (one truck) |
+| 42,001 to 51,999 | **rejected**: the second truck would carry less than 10,000. The message names the next valid amount (52,000) |
+| 52,000 to 84,000 | accepted |
+| 84,001 to 93,999 | rejected, next valid is 94,000 |
+
+Scheduling is unchanged: the order still needs one delivery window with enough room, so dispatchers must create windows with enough capacity for MGO (the development seed creates 50,000 L windows).
+
 ## 3b. Delivered litres: the final price
 
 When an order is delivered, the dispatcher enters the litres actually delivered.
 
-- The delivered litres may differ from the ordered litres by at most **plus or minus 10 percent**. Ordered 1000: 900 to 1100 is accepted, 899 and 1101 are not.
+- Delivering **more** than ordered is capped at **plus 10 percent**. Ordered 1000: 1101 is rejected.
+- Delivering **up to 10 percent less** needs nothing extra. Ordered 1000: 900 to 1100 is accepted.
+- Delivering **more than 10 percent less** (any amount above zero) is allowed, but the dispatcher must give a **reason**, for example "truck was out of product". Ordered 1000: 899 needs a reason. The reason is stored on the order (`ShortDeliveryReason`) and shown to the customer under My orders. A reason given for a delivery within 10 percent is ignored.
 - The **final price is recalculated** from the delivered litres using the *snapshot* from order time: same unit price, same VAT rate, and **the same discount rate and fee as at order time**. The thresholds are not checked again.
 - The original price on the order is never changed. The final price is stored next to it.
 

@@ -14,4 +14,10 @@ public sealed class PricingOptions
     public int BusinessDiscountThresholdLitres { get; set; } = 5000;
     public decimal BusinessDiscountRate { get; set; } = 0.02m;
     public decimal VatRate { get; set; } = 0.25m;
+
+    /// <summary>MGO (marine diesel) is for ships: a bigger minimum than the other products.</summary>
+    public int MgoMinimumOrderLitres { get; set; } = 10_000;
+
+    /// <summary>One truck carries this much MGO. Bigger orders need more trucks; see <see cref="PriceCalculator.EnsureCanOrder"/>.</summary>
+    public int MgoTruckCapacityLitres { get; set; } = 42_000;
 }

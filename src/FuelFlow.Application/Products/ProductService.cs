@@ -6,7 +6,8 @@ using FuelFlow.Domain.Products;
 
 namespace FuelFlow.Application.Products;
 
-public sealed record ProductDto(Guid Id, ProductType Type, decimal PricePerLitreExVat, decimal PricePerLitreIncVat, DateTimeOffset PriceValidFrom);
+public sealed record ProductDto(
+    Guid Id, ProductType Type, decimal PricePerLitreExVat, decimal PricePerLitreIncVat, DateTimeOffset PriceValidFrom, bool RequiresBusinessCustomer);
 
 /// <summary>ValidFrom is optional: leave it out to change the price right now, or give a future time to schedule it.</summary>
 public sealed record ChangePriceRequest(decimal PricePerLitreExVat, DateTimeOffset? ValidFrom);
@@ -60,6 +61,6 @@ public sealed class ProductService(
     {
         var current = product.PriceHistory.Where(p => p.ValidFrom <= now).MaxBy(p => p.ValidFrom)
             ?? throw new InvalidOperationException($"Product {product.Id} has no price in force.");
-        return new ProductDto(product.Id, product.Type, current.PricePerLitreExVat, calculator.AddVat(current.PricePerLitreExVat), current.ValidFrom);
+        return new ProductDto(product.Id, product.Type, current.PricePerLitreExVat, calculator.AddVat(current.PricePerLitreExVat), current.ValidFrom, product.RequiresBusinessCustomer);
     }
 }
