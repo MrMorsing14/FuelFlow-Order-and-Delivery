@@ -1,5 +1,5 @@
-using FuelFlow.Domain.Common;
 using System.Globalization;
+using FuelFlow.Domain.Common;
 using FuelFlow.Domain.Customers;
 using FuelFlow.Domain.Products;
 
